@@ -20,9 +20,13 @@
 #
 ##############################################################################
 
-from . import (
-    runbot_repo,
-    runbot_branch,
-    runbot_build,
-    controllers,
-)
+try:
+    from . import (
+        runbot_repo,
+        runbot_branch,
+        runbot_build,
+        controllers,
+   )
+except ImportError, exc:
+    # don't fail at load if gitlab module is not available
+    pass
