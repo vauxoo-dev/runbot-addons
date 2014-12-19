@@ -31,9 +31,9 @@ class runbot_build(orm.Model):
 
     def spawn(self, cmd, lock_path, log_path, cpu_limit=None, shell=False,
               showstderr=False):
-        """Remove "--test-enable from cmd line"""
+        """Remove "--test-enable" from cmd line"""
         cmd = [c for c in cmd if c != '--test-enable']
-        return self.spawn(
+        return super(runbot_build, self).spawn(
             cmd,
             lock_path,
             log_path,
