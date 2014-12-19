@@ -32,6 +32,7 @@ from contextlib import closing
 
 import logging
 _logger = logging.getLogger(__name__)
+_logger.setLevel(logging.DEBUG)
 
 from openerp import models, api, SUPERUSER_ID, tools, sql_db
 
@@ -95,30 +96,35 @@ class RunbotRepo(models.Model):
             ('dest', 'in', list(build_dirs)),
             ('state', '!=', 'done')
         ])]
+        _logger.debug("build_dirs = %s" % build_dirs)
+        _logger.debug("valid_builds = %s" % valid_builds)
         for pattern in build_dirs.difference(valid_builds):
             _logger.info("Runbot Janitor Cleaning up Residue: %s" % pattern)
-            self.clean_up_database(pattern)
-            self.clean_up_process(pattern)
-            self.clean_up_filesystem(pattern)
+            try:
+                self.clean_up_database(pattern)
+            except OSError as e:
+                _logger.error(e)
+            try:
+                self.clean_up_process(pattern)
+            except OSError as e:
+                _logger.error(e)
+            try:
+                self.clean_up_filesystem(pattern)
+            except OSError as e:
+                _logger.error(e)
 
     def clean_up_pids(self):
-        """Check if builds have pids registered which are no longer running
-
-        Mark those as done
-        Kill all done pids
+        """Kill all done pids which are still running
         """
-        # Mark build with non-running pids as done
-        self.env['runbot.build'].search([
-            ('pid', '!=', False),
-            ('pid', 'not in', psutil.pids()),
-            ('state', '!=', 'done')
-        ]).write({'state': 'done'})
-        # Kill still running pids
         for build in self.env['runbot.build'].search([
             ('pid', 'in', psutil.pids()),
             ('state', '=', 'done')
         ]):
-            os.kill(build.pid, signal.SIGKILL)
+            _logger.debug("Killing pid %s" % build.pid)
+            try:
+                os.kill(build.pid, signal.SIGKILL)
+            finally:
+                build.pid = False
 
     def clean_up_database(self, pattern):
         """Drop all databases whose names match the directory names matching
@@ -131,6 +137,7 @@ class RunbotRepo(models.Model):
         db_list = exp_list_posix_user()
         time.sleep(1)  # Give time for the cursor to close properly
         for db_name in filter(regex.match, db_list):
+            _logger.debug("Dropping %s" % db_name)
             runbot_build.pg_dropdb(dbname=db_name)
 
     def clean_up_process(self, pattern):
@@ -143,12 +150,22 @@ class RunbotRepo(models.Model):
         regex = re.compile(r'.*-d {}.*'.format(pattern))
         for process in psutil.process_iter():
             if regex.match(" ".join(process.cmdline())):
+                _logger.debug("Killing pid %s" % process.pid)
                 process.kill()
 
     def clean_up_filesystem(self, pattern):
         """Delete the directory and its contents matching the pattern.
 
+        If there are logs, delete everything except those
+
         :param pattern: string
         """
         pattern_path = os.path.join(self.root(), 'build', pattern)
-        shutil.rmtree(pattern_path)
+        log_dir = os.path.join(pattern_path, 'logs')
+        if os.path.isdir(log_dir) and os.listdir(log_dir):
+            for directory in os.listdir(pattern_path):
+                if directory == 'logs':
+                    continue
+                shutil.rmtree(directory)
+        else:
+            shutil.rmtree(pattern_path)
