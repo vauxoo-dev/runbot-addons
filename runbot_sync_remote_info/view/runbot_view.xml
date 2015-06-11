@@ -28,24 +28,13 @@
 
         <!--group by branch remote name-->
         <record id="view_group_by_branch_remote_name" model="ir.ui.view">
-            <field name="name">runbot.branch.remote.name</field>
             <field name="model">runbot.branch</field>
+            <field name="inherit_id" ref="runbot.view_branch_search"/>
             <field name="arch" type="xml">
-                <search string="Group by branch_remote_name">                   
-                   <group expand="0" string="Group By">
-                       <filter name="branch_remote_names" string="Branch remote name"
-                              icon="terp-partner" context="{'group_by': 'branch_remote_name'}"/>
-                   </group>
-               </search>
+               <xpath expr="//filter[@string='Repo']" position="after">
+                   <filter string="Branch remote name" domain="[]" context="{'group_by': 'branch_remote_name'}"/>
+               </xpath>
             </field>
         </record>
-        <record id="runbot.action_branch" model="ir.actions.act_window">
-            <field name="name">Branches</field>
-            <field name="type">ir.actions.act_window</field>
-            <field name="res_model">runbot.branch</field>
-            <field name="view_type">form</field>
-            <field name="context">{'search_default_branch_remote_names': 1}</field>
-    </record>
-
     </data>
 </openerp>
