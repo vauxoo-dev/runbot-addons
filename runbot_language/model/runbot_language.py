@@ -34,7 +34,7 @@ class RunbotRepo(models.Model):
     lang = fields.Selection(
         tools.scan_languages(), 'Language',
         help='Language to change '
-        'instance after of run test.', copy=True),
+        'instance after of run test.', copy=True)
 
 
 class RunbotBuild(models.Model):
@@ -52,7 +52,7 @@ class RunbotBuild(models.Model):
     lang = fields.Selection(
         tools.scan_languages(), 'Language',
         help='Language to change '
-        'instance after of run test.', copy=True),
+        'instance after of run test.', copy=True)
 
     @api.multi
     def cmd(self):
