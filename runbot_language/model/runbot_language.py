@@ -54,30 +54,31 @@ class RunbotBuild(models.Model):
         help='Language to change '
         'instance after of run test.', copy=True),
 
-    def cmd(self, cr, uid, ids, context=None):
+    @api.multi
+    def cmd(self):
         """Return a list describing the command to start the build"""
-        cmd, modules = super(RunbotBuild, self).cmd(
-            cr, uid, ids, context=context)
-        for build in self.browse(cr, uid, ids, context=context):
+        cmd, modules = super(RunbotBuild, self).cmd()
+        for build in self:
             if build.lang and build.job == 'job_30_run':
                 cmd.append("--load-language=%s" % (build.lang))
         return cmd, modules
 
-    def update_lang(self, cr, uid, build, context=None):
+    @api.one
+    def update_lang(self):
         """Set lang to all users into '-all' database"""
-        if build.lang:
-            db_name = "%s-all" % build.dest
+        if self.lang:
+            db_name = "%s-all" % self.dest
             try:
                 # update odoo version >=7.0
                 run(['psql', db_name, '-c', "UPDATE res_partner SET lang='%s' "
                      "WHERE id IN (SELECT partner_id FROM res_users);" %
-                     (build.lang)])
+                     (self.lang)])
             except BaseException:
                 pass
             try:
                 # update odoo version <7.0
                 run(['psql', db_name, '-c', "UPDATE res_users SET lang='%s';" %
-                     (build.lang)])
+                     (self.lang)])
             except BaseException:
                 pass
         return True
@@ -85,19 +86,18 @@ class RunbotBuild(models.Model):
     def job_30_run(self, cr, uid, build, lock_path, log_path):
         res = super(RunbotBuild, self).job_30_run(cr, uid, build,
                                                   lock_path, log_path)
-        self.update_lang(cr, uid, build)
+        self.update_lang(cr, uid, build,)
         return res
 
-    def create(self, cr, uid, values, context=None):
+    @api.model
+    def create(self, values):
         """
         This method set language from repo in the build.
         """
         if values.get('branch_id', False) and 'lang' not in values:
-            branch_pool = self.pool['runbot.branch']
-            branch_id = branch_pool.browse(
-                cr, uid, values['branch_id'], context=context)
+            lang = self.env['runbot.branch'].browse(
+                values['branch_id']).repo_id.lang
             values.update({
-                'lang': branch_id.repo_id.lang,
+                'lang': lang,
             })
-        return super(RunbotBuild, self).create(cr, uid, values,
-                                               context=context)
+        return super(RunbotBuild, self).create(values)
