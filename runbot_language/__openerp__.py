@@ -14,12 +14,11 @@
     'summary': 'Runbot',
     'version': '1.1',
     "website": "http://www.vauxoo.com/",
-    'description': "Runbot with posibility to indicate the language"
-                   " in the instances generated",
-    'author': 'Vauxoo',
+    'author': 'Vauxoo,Odoo Community Association (OCA)',
     'depends': ['runbot'],
     'data': [
-        'view/runbot_language_view.xml',
+        'views/runbot_repo_views.xml',
+        'views/runbot_build_views.xml',
     ],
     'installable': True,
 }

@@ -8,4 +8,4 @@
 #    coded by: moylop260@vauxoo.com
 ############################################################################
 
-from . import model
+from . import models
