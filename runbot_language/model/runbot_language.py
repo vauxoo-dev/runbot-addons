@@ -92,11 +92,12 @@ class RunbotBuild(models.Model):
         """
         This method set language from repo in the build.
         """
-        if values.get('branch_id', False) and 'lang' not in values.keys():
-            branch_id = self.pool.get('runbot.branch').browse(
-                cr, uid, values['branch_id'])
+        if values.get('branch_id', False) and 'lang' not in values:
+            branch_pool = self.pool['runbot.branch']
+            branch_id = branch_pool.browse(
+                cr, uid, values['branch_id'], context=context)
             values.update({
-                'lang': branch_id.repo_id and branch_id.repo_id.lang or False,
+                'lang': branch_id.repo_id.lang,
             })
         return super(RunbotBuild, self).create(cr, uid, values,
                                                context=context)
