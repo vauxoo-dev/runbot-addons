@@ -86,7 +86,7 @@ class RunbotBuild(models.Model):
     def job_30_run(self, cr, uid, build, lock_path, log_path):
         res = super(RunbotBuild, self).job_30_run(cr, uid, build,
                                                   lock_path, log_path)
-        self.update_lang(cr, uid, build,)
+        self.update_lang(cr, uid, build.id)
         return res
 
     @api.model
