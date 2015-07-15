@@ -8,4 +8,5 @@
 #    coded by: moylop260@vauxoo.com
 ############################################################################
 
-from . import models
+from . import runbot_repo
+from . import runbot_build

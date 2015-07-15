@@ -1,37 +1,24 @@
-#!/usr/bin/python
 # -*- encoding: utf-8 -*-
+##############################################################
+#    Module Writen For Odoo, Open Source Management Solution
 #
-#    Module Writen to OpenERP, Open Source Management Solution
-#
-#    Copyright (c) 2014 Vauxoo - http://www.vauxoo.com/
+#    Copyright (c) 2011 Vauxoo - http://www.vauxoo.com
 #    All Rights Reserved.
 #    info Vauxoo (info@vauxoo.com)
-#
-#    Coded by: vauxoo consultores (info@vauxoo.com)
-#
-#
-#    This program is free software: you can redistribute it and/or modify
-#    it under the terms of the GNU Affero General Public License as
-#    published by the Free Software Foundation, either version 3 of the
-#    License, or (at your option) any later version.
-#
-#    This program is distributed in the hope that it will be useful,
-#    but WITHOUT ANY WARRANTY; without even the implied warranty of
-#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#    GNU Affero General Public License for more details.
-#
-#    You should have received a copy of the GNU Affero General Public License
-#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
+#    coded by: moylop260@vauxoo.com
+############################################################################
+
 """
 This module is used to create new fields in the inherited classes
 to work with pylint from runbot
 """
+
 from openerp.osv import fields, osv
 import logging
 import os
 import stat
 from openerp.tools.safe_eval import safe_eval
+
 
 _logger = logging.getLogger(__name__)
 
@@ -59,50 +46,7 @@ def get_depends(modules, addons_paths, depends=None):
     return depends
 
 
-class RunbotRepo(osv.osv):
-
-    """
-    Added pylint_conf_path field to use a configuration
-      of pylint by repository,
-      to use for each build of repository.
-    """
-
-    _inherit = 'runbot.repo'
-
-    _columns = {
-        'pylint_conf_path': fields.char('Pylint conf path',
-                                        help='Relative path to pylint'
-                                        ' conf file'),
-        'check_pylint': fields.boolean('Check pylint',
-                                       help='Check pylint to modules'
-                                       ' of this repo'),
-    }
-
-    def get_module_list(self, cr, uid, ids, treeish, context=None):
-        """
-        Get module list from a repo with a treeish (sha, tag or branch name)
-        """
-        if not ids:
-            return True
-        if isinstance(ids, (int, long)):
-            ids = [ids]
-        repo_paths_list = []
-        for repo in self.browse(cr, uid, ids, context=context):
-            command_git = ['ls-tree', treeish, '--name-only']
-            # get addons list from main repo
-            repo_paths_str = repo.git(command_git +
-                                      ['addons/', 'openerp/addons/'])
-            if not repo_paths_str:
-                # get addons list from module repo
-                repo_paths_str = repo.git(command_git)
-            repo_paths_list = repo_paths_str and\
-                repo_paths_str.rstrip().split('\n') or []
-            repo_paths_list = [os.path.basename(module)
-                               for module in repo_paths_list]
-        return repo_paths_list
-
-
-class RunbotBuild(osv.osv):
+class RunbotBuild(models.Model):
 
     """
     Added pylint_conf_path field,
@@ -111,43 +55,32 @@ class RunbotBuild(osv.osv):
 
     _inherit = "runbot.build"
 
-    _columns = {
-        'pylint_conf_path': fields.char('pylint conf path',
-                                        help='Relative path to pylint'
-                                        ' conf file'),
-    }
+    pylint_conf_path = fields.Char(
+        help='Relative path to pylint conf file')
 
-    def _create(self, cr, user, values, context=None):
+    @api.model
+    def create(self, values):
         """
         This method set configuration of pylint.
         """
-        if values.get('branch_id', False)\
-           and 'pylint_conf_path' not in values.keys():
-            branch_id = self.pool.get('runbot.branch').\
-                browse(cr, user, values['branch_id'])
+        if values.get('branch_id', False) \
+           and 'pylint_conf_path' not in values:
+            branch = self.env['runbot.branch'].browse(
+                values['branch_id'])
             values.update({
-                'pylint_conf_path':
-                    branch_id.repo_id and branch_id.repo_id.pylint_conf_path
+                'pylint_conf_path': branch.repo_id.pylint_conf_path,
             })
-        return super(RunbotBuild, self)._create(cr, user, values,
-                                                context=context)
+        return super(RunbotBuild, self).create(values)
 
-    # job_10_test_base = \
-    #    lambda self, cr, uid, build, lock_path, log_path, args=None:\
-    #    build.checkout()
-
-    def get_repo_branch_name(self, cr, uid, ids, context=None):
+    @api.multi
+    def get_repo_branch_name(self):
         """
         This method get all repo id and branch name from a build.
         Include dependency repo.
         return dict {repo.id = branch_name}
         """
-        if not ids:
-            return True
-        if isinstance(ids, (int, long)):
-            ids = [ids]
         repo_branch_data = {}
-        for build in self.browse(cr, uid, ids, context=context):
+        for build in self:
             hint_branches = set()
             for extra_repo in build.repo_id.dependency_ids:
                 closest_name = build.get_closest_branch_name(
@@ -157,7 +90,8 @@ class RunbotBuild(osv.osv):
             repo_branch_data[build.repo_id.id] = build.name
         return repo_branch_data
 
-    def get_modules_to_check_pylint(self, cr, uid, ids, context=None):
+    @api.multi
+    def get_modules_to_check_pylint(self):
         """
         This method get all modules to check pylint test.
         Using field runbot_repo.check_pylint check box and get modules list
@@ -165,17 +99,13 @@ class RunbotBuild(osv.osv):
         This method use build.modules too to get all depends from
         selected repo.
         """
-        if not ids:
-            return True
-        if isinstance(ids, (int, long)):
-            ids = [ids]
-        repo_pool = self.pool['runbot.repo']
+        repo_pool = self.env['runbot.repo']
         modules_to_check_pylint = set()
-        for build in self.browse(cr, uid, ids, context=context):
+        for build in self:
             # get ls-tree modules from repo.check_pylint==True
             repo_branch_name_data = build.get_repo_branch_name()
             for repo_id in repo_branch_name_data:
-                repo = repo_pool.browse(cr, uid, repo_id, context=context)
+                repo = repo_pool.browse(repo_id)
                 if repo.check_pylint:
                     branch_name = repo_branch_name_data[repo_id]
                     branch_ls = repo.get_module_list(branch_name)
