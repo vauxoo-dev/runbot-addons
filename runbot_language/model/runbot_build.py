@@ -21,22 +21,6 @@ from openerp.addons.runbot.runbot import run
 _logger = logging.getLogger(__name__)
 
 
-class RunbotRepo(models.Model):
-
-    '''
-    Inherit class runbot_repo to add field to select the language that must
-      be assigned to builds
-      that generate the repo.
-    '''
-
-    _inherit = "runbot.repo"
-
-    lang = fields.Selection(
-        tools.scan_languages(), 'Language',
-        help='Language to change '
-        'instance after of run test.', copy=True)
-
-
 class RunbotBuild(models.Model):
 
     '''
