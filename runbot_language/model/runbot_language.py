@@ -14,7 +14,7 @@
       generated.
 '''
 
-from openerp import fields, models, tools
+from openerp import api, fields, models, tools
 import logging
 from openerp.addons.runbot.runbot import run
 
