@@ -135,24 +135,24 @@ class RunbotBuild(models.Model):
             args = {}
         build._log('pylint_script', 'Start pylint script')
         if not build.pylint_conf_path:
-            build._log('pylint_script', 'Not config file detected')
+            build._log('pylint_script', 'No config file detected')
             return None
         path_pylint_conf = os.path\
             .join(os.path.split(build.server())[0],
                   build.pylint_conf_path)
         if not os.path.isfile(path_pylint_conf):
-            build._log('pylint_script', 'Not file found [%s]' %
-                       (path_pylint_conf))
+            build._log('pylint_script', 'No file found [%s]' %
+                       path_pylint_conf)
             return None
         modules_to_check_pylint = build.get_modules_to_check_pylint()
 
         if not modules_to_check_pylint:
-            build._log('pylint_script', 'Not modules to check pylint found')
+            build._log('pylint_script', 'No modules to check pylint found')
             return None
         fname_pylint_run_sh = os.path.join(build.path(),
                                            'pylint_run.sh')
         with open(fname_pylint_run_sh, "w") as f_pylint_run_sh:
-            f_pylint_run_sh.write("#!/bin/bash\n")
+            f_pylint_run_sh.write("#!/bin/sh\n")
             f_pylint_run_sh.write("export PYTHONPATH="
                                   "$PYTHONPATH:%s\n" %
                                   (build.server()))

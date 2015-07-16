@@ -13,7 +13,7 @@
     'category': 'Website',
     'summary': 'Runbot',
     'version': '1.0',
-    'author': 'Vauxoo, ',
+    'author': 'Vauxoo, Odoo Community Association (OCA)',
     'depends': ['runbot'],
     'external_dependencies': {
         'bin': ['pylint'],
