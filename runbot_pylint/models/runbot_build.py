@@ -13,7 +13,7 @@ This module is used to create new fields in the inherited classes
 to work with pylint from runbot
 """
 
-from openerp.osv import fields, osv
+from openerp import models, api, fields
 import logging
 import os
 import stat
