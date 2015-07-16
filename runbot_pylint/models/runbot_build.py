@@ -191,8 +191,8 @@ class RunbotBuild(models.Model):
         max_log_lines = 20
         count = 0
         if os.path.isfile(pylint_log):
-            with open(pylint_log, "r") as fpylint_log:
-                for line in fpylint_log.xreadlines():
+            with open(pylint_log) as fpylint_log:
+                for line in fpylint_log:
                     if not pylint_error and '****' in line:
                         pylint_error = True
                     if pylint_error:
