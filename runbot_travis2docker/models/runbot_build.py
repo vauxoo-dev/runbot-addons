@@ -1,8 +1,17 @@
 # coding: utf-8
+
+import logging
+import os
+import sys
+
 from openerp import fields, models
 from openerp.addons.runbot_build_instructions.runbot_build \
     import MAGIC_PID_RUN_NEXT_JOB
 from openerp.addons.runbot.runbot import mkdirs, run
+
+from travis2docker.travis2docker import main as t2d
+
+_logger = logging.getLogger(__name__)
 
 
 def custom_build(func):
@@ -19,7 +28,7 @@ def custom_build(func):
         regular_ids = list(set(ids) - set(custom_ids))
         ret = None
         if regular_ids:
-            regular_func = getattr(super(runbot_build, self), func.func_name)
+            regular_func = getattr(super(RunbotBuild, self), func.func_name)
             ret = regular_func(cr, uid, regular_ids, context=context)
         if custom_ids:
             assert ret is None
@@ -31,36 +40,44 @@ def custom_build(func):
 class RunbotBuild(models.Model):
     _inherit = 'runbot.build'
 
-    def job_00_init(self, cr, uid, build, lock_path, log_path):
-        if not build.branch_id.repo_id.is_travis2docker_build:
-            return super(runbot_build, self).job_00_init(
-                cr, uid, build, lock_path, log_path)
-        raise NotImplemented("ToDo: Build docker image")
+    dockerfile_path = fields.Char()
 
     def job_10_test_base(self, cr, uid, build, lock_path, log_path):
         if build.branch_id.repo_id.is_travis2docker_build:
             _logger.info('skipping job_10_test_base')
             return MAGIC_PID_RUN_NEXT_JOB
-        return super(runbot_build, self).job_10_test_base(
+        return super(RunbotBuild, self).job_10_test_base(
             cr, uid, build, lock_path, log_path)
 
     def job_20_test_all(self, cr, uid, build, lock_path, log_path):
         if not build.branch_id.repo_id.is_travis2docker_build:
-            return super(runbot_build, self).job_20_test_all(
+            return super(RunbotBuild, self).job_20_test_all(
                 cr, uid, build, lock_path, log_path)
+        if not build.dockerfile_path:
+            _logger.info(
+                'skipping job_20_test_all: '
+                'Dockerfile without TESTS=1 env')
+
+            return MAGIC_PID_RUN_NEXT_JOB
+        print build.dockerfile_path
         raise NotImplemented("ToDo: Run travis container expose "
                              "port 8069 to build port")
 
     @custom_build
     def checkout(self, cr, uid, ids, context=None):
         """Save travis2docker output"""
-        # runbot log path
         for build in self.browse(cr, uid, ids, context=context):
-            branch_short_name = build.branch_id.replace(
-                'refs/heads/', 1).replace('refs/pull/', 1)
-            t2d_path = os.path.join(os.path.dirname(repo.path), 'travis2docker')
-            run(['travisfile2dockerfile', build.repo_id.name,
-                 branch_short_name, '--root-path=' + t2d_path])
+            branch_short_name = build.branch_id.name.replace(
+                'refs/heads/', '', 1).replace('refs/pull/', '', 1)
+            t2d_path = os.path.join(build.repo_id.root(), 'travis2docker')
+            sys.argv = [
+                'travisfile2dockerfile', build.repo_id.name,
+                branch_short_name, '--root-path=' + t2d_path]
+            path_scripts = t2d()
+            for path_script in path_scripts:
+                df_content = open(os.path.join(
+                    path_script, 'Dockerfile')).read()
+                if 'ENV TESTS=1' in df_content:
+                    build.dockerfile_path = path_script
 
-    #TODO: Add custom_build to drop and kill
-
+    # TODO: Add custom_build to drop and kill
