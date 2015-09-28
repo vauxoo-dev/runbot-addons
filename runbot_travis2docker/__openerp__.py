@@ -18,6 +18,7 @@
         "bin": ['travisfile2dockerfile'],
     },
     "data": [
+        "views/runbot_repo_view.xml",
     ],
     "demo": [
     ],

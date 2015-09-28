@@ -2,7 +2,7 @@
 from openerp import fields, models
 from openerp.addons.runbot_build_instructions.runbot_build \
     import MAGIC_PID_RUN_NEXT_JOB
-from openerp.addons.runbot import mkdirs, run
+from openerp.addons.runbot.runbot import mkdirs, run
 
 
 def custom_build(func):
