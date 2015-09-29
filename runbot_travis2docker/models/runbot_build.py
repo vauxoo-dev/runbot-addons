@@ -9,6 +9,7 @@ from openerp.addons.runbot_build_instructions.runbot_build \
     import MAGIC_PID_RUN_NEXT_JOB
 from openerp.addons.runbot.runbot import mkdirs, run
 
+from travis2docker.git_run import GitRun
 from travis2docker.travis2docker import main as t2d
 
 _logger = logging.getLogger(__name__)
@@ -59,7 +60,11 @@ class RunbotBuild(models.Model):
                 'Dockerfile without TESTS=1 env')
 
             return MAGIC_PID_RUN_NEXT_JOB
-        print build.dockerfile_path
+	git_obj = GitRun(build.repo_id.name, '')
+	image_name = git_obj.owner + '-' + git_obj.repo + ':' + \
+	    build.name[:7] + '_' + os.path.basename(build.dockerfile_path)
+	image_name = image_name.lower()
+	run(['docker', 'build', "-t", image_name, build.dockerfile_path])
         raise NotImplemented("ToDo: Run travis container expose "
                              "port 8069 to build port")
 
@@ -68,7 +73,7 @@ class RunbotBuild(models.Model):
         """Save travis2docker output"""
         for build in self.browse(cr, uid, ids, context=context):
             branch_short_name = build.branch_id.name.replace(
-                'refs/heads/', '', 1).replace('refs/pull/', '', 1)
+                'refs/heads/', '', 1).replace('refs/pull/', 'pull/', 1)
             t2d_path = os.path.join(build.repo_id.root(), 'travis2docker')
             sys.argv = [
                 'travisfile2dockerfile', build.repo_id.name,
