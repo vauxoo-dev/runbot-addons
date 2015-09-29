@@ -65,6 +65,7 @@ class RunbotBuild(models.Model):
 	    build.name[:7] + '_' + os.path.basename(build.dockerfile_path)
 	image_name = image_name.lower()
 	run(['docker', 'build', "-t", image_name, build.dockerfile_path])
+	run(['docker', 'run', '-p', '%d:%d'%(build.port, 8069), '-it', image_name])
         raise NotImplemented("ToDo: Run travis container expose "
                              "port 8069 to build port")
 
