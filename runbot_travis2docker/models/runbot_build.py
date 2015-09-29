@@ -72,8 +72,9 @@ class RunbotBuild(models.Model):
                 'skipping job_20_test_all: '
                 'Dockerfile without TESTS=1 env')
             return MAGIC_PID_RUN_NEXT_JOB
+        run(['docker', 'rm', '-f', '%d'%(build.id)])
         cmd = [
-            'docker', 'run', '-e', 'INSTANCE_ALIVE="1"',
+            'docker', 'run', '-e', 'INSTANCE_ALIVE=1',
             '-p', '%d:%d' % (build.port, 8069),
             '--name=%d' % (build.id), '-it', build.docker_image,
         ]
