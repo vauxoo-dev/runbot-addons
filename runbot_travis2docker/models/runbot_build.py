@@ -42,15 +42,28 @@ class RunbotBuild(models.Model):
     _inherit = 'runbot.build'
 
     dockerfile_path = fields.Char()
+    docker_image = fields.Char()
+
+    def get_docker_image(self, cr, uid, build, context=None):
+        git_obj = GitRun(build.repo_id.name, '')
+        image_name = git_obj.owner + '-' + git_obj.repo + ':' + \
+            build.name[:7] + '_' + os.path.basename(build.dockerfile_path)
+        return image_name.lower()
 
     def job_10_test_base(self, cr, uid, build, lock_path, log_path):
-        if build.branch_id.repo_id.is_travis2docker_build:
-            _logger.info('skipping job_10_test_base')
-            return MAGIC_PID_RUN_NEXT_JOB
-        return super(RunbotBuild, self).job_10_test_base(
-            cr, uid, build, lock_path, log_path)
+        'Build docker image'
+        if not build.branch_id.repo_id.is_travis2docker_build:
+            return super(RunbotBuild, self).job_10_test_base(
+                cr, uid, build, lock_path, log_path)
+        cmd = [
+            'docker', 'build', "--no-cache",
+            "-t", build.docker_image,
+            build.dockerfile_path
+        ]
+        return self.spawn(cmd, lock_path, log_path)
 
     def job_20_test_all(self, cr, uid, build, lock_path, log_path):
+        'create docker container'
         if not build.branch_id.repo_id.is_travis2docker_build:
             return super(RunbotBuild, self).job_20_test_all(
                 cr, uid, build, lock_path, log_path)
@@ -58,16 +71,22 @@ class RunbotBuild(models.Model):
             _logger.info(
                 'skipping job_20_test_all: '
                 'Dockerfile without TESTS=1 env')
-
             return MAGIC_PID_RUN_NEXT_JOB
-	git_obj = GitRun(build.repo_id.name, '')
-	image_name = git_obj.owner + '-' + git_obj.repo + ':' + \
-	    build.name[:7] + '_' + os.path.basename(build.dockerfile_path)
-	image_name = image_name.lower()
-	run(['docker', 'build', "-t", image_name, build.dockerfile_path])
-	run(['docker', 'run', '-p', '%d:%d'%(build.port, 8069), '-it', image_name])
-        raise NotImplemented("ToDo: Run travis container expose "
-                             "port 8069 to build port")
+        cmd = [
+            'docker', 'run', '-e', 'INSTANCE_ALIVE="1"',
+            '-p', '%d:%d' % (build.port, 8069),
+            '--name=%d' % (build.id), '-it', build.docker_image,
+        ]
+        # Todo: Add log path volume
+        return self.spawn(cmd, lock_path, log_path)
+
+    def job_30_run(self, cr, uid, build, lock_path, log_path):
+        'Run docker container with odoo server started'
+        if not build.branch_id.repo_id.is_travis2docker_build:
+            return super(RunbotBuild, self).job_30_run(
+                cr, uid, build, lock_path, log_path)
+        cmd = ['docker', 'start', '-i', '%d'%build.id]
+        return self.spawn(cmd, lock_path, log_path)
 
     @custom_build
     def checkout(self, cr, uid, ids, context=None):
@@ -85,5 +104,6 @@ class RunbotBuild(models.Model):
                     path_script, 'Dockerfile')).read()
                 if 'ENV TESTS=1' in df_content:
                     build.dockerfile_path = path_script
+                    build.docker_image = self.get_docker_image(cr, uid, build)
 
     # TODO: Add custom_build to drop and kill
