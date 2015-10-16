@@ -4,13 +4,15 @@ import logging
 import os
 import time
 import sys
+import docker.errors
+from docker import Client
 
 import openerp
 from openerp import fields, models
 from openerp.addons.runbot_build_instructions.runbot_build \
     import MAGIC_PID_RUN_NEXT_JOB
 from openerp.addons.runbot.runbot import (
-    grep, rfind, run, _re_error, _re_warning)
+    grep, rfind, _re_error, _re_warning)
 
 from travis2docker.git_run import GitRun
 from travis2docker.travis2docker import main as t2d
@@ -48,6 +50,9 @@ class RunbotBuild(models.Model):
     docker_image = fields.Char()
     docker_container = fields.Char()
 
+    base_url = 'unix://var/run/docker.sock'
+    client = Client(base_url)
+
     def get_docker_image(self, cr, uid, build, context=None):
         git_obj = GitRun(build.repo_id.name, '')
         image_name = git_obj.owner + '-' + git_obj.repo + ':' + \
@@ -66,12 +71,8 @@ class RunbotBuild(models.Model):
                 or build.result == 'skipped':
             _logger.info('docker build skipping job_10_test_base')
             return MAGIC_PID_RUN_NEXT_JOB
-        cmd = [
-            'docker', 'build',
-            "--no-cache",
-            "-t", build.docker_image,
-            build.dockerfile_path,
-        ]
+        subcmd = "exec(\"from docker import Client;client=Client('{url}');steps=client.build('{dkr_file}', nocache=False, tag='{dkr_image}')\\nfor step in steps: print step\")".format(url=self.base_url, dkr_file=build.dockerfile_path, dkr_image=build.docker_image)
+        cmd = ['python', '-c', subcmd]
         return self.spawn(cmd, lock_path, log_path)
 
     def job_20_test_all(self, cr, uid, build, lock_path, log_path):
@@ -83,14 +84,17 @@ class RunbotBuild(models.Model):
                 or build.result == 'skipped':
             _logger.info('docker build skipping job_20_test_all')
             return MAGIC_PID_RUN_NEXT_JOB
-        run(['docker', 'rm', '-f', build.docker_container])
-        cmd = [
-            'docker', 'run', '-e', 'INSTANCE_ALIVE=1',
-            '-e', 'RUNBOT=1',
-            '-p', '%d:%d' % (build.port, 8069),
-            '--name=' + build.docker_container, '-it',
-            build.docker_image,
-        ]
+        try:
+            self.client.remove_container(build.docker_container, force=True)
+        except docker.errors.APIError as error:
+            if "no such id" in error.explanation:
+                _logger.info('Container not found')
+        environment = ["INSTANCE_ALIVE=1", "RUNBOT=1"]
+        self.client.create_container(environment=environment, ports=[build.port, 8069], name=build.docker_container, image=build.docker_image, stdin_open=True, tty=True)
+        self.client.start(build.docker_container)
+        subcmd = "exec(\"import sys;from docker import Client;client=Client('{url}', timeout=None);\\nfor line in client.logs(container='{dkr_cont}', stream=True, stdout=True, stderr=True):\\n\\tsys.stdout.write(line)\\n\\tsys.stdout.flush()\\n\")".format(url=self.base_url, dkr_cont=build.docker_container)
+        cmd = ['python', '-c', subcmd]
+        _logger.info('Executing tests: %s', build.docker_container)
         return self.spawn(cmd, lock_path, log_path)
 
     def job_30_run(self, cr, uid, build, lock_path, log_path):
@@ -124,8 +128,8 @@ class RunbotBuild(models.Model):
         build.write(v)
         build.github_status()
         # end copy and paste from original method
-
-        cmd = ['docker', 'start', '-i', build.docker_container]
+        subcmd = "exec(\"from docker import Client;client=Client('{url}');client.start('{dkr_cont}');\\nfor line in client.logs(container='{dkr_cont}', stream=True, stdout=True, stderr=True):\\n\\tsys.stdout.write(line)\\n\\tsys.stdout.flush()\\n\")".format(url=self.base_url, dkr_cont=build.docker_container)
+        cmd = ['python', '-c', subcmd]
         return self.spawn(cmd, lock_path, log_path)
 
     @custom_build
@@ -161,5 +165,9 @@ class RunbotBuild(models.Model):
     def cleanup(self, cr, uid, ids, context=None):
         for build in self.browse(cr, uid, ids, context=context):
             if build.docker_container:
-                run(['docker', 'rm', '-f', build.docker_container])
-                run(['docker', 'rmi', '-f', build.docker_image])
+                try:
+                    self.client.remove_container(build.docker_container, force=True)
+                    self.client.remove_image(build.docker_image, force=True)
+                except docker.errors.APIError as error:
+                    if "no such id" in error.explanation:
+                        _logger.info('Container not found')
