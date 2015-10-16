@@ -71,9 +71,11 @@ class RunbotBuild(models.Model):
                 or build.result == 'skipped':
             _logger.info('docker build skipping job_10_test_base')
             return MAGIC_PID_RUN_NEXT_JOB
-        subcmd = (("exec(\"from docker import Client;client=Client('{url}');"
-                   "steps=client.build('{dkr_file}', nocache=True,"
-                   " tag='{dkr_image}')\\nfor step in steps: print step\")")
+        subcmd = (("exec(\"import sys;"
+                   "from docker import Client;client=Client('{url}');"
+                   "steps=client.build('{dkr_file}', nocache=False,"
+                   " tag='{dkr_image}')\\n"
+                   "for step in steps: sys.stdout.write(step['stream'])\")")
                   .format(url=self.base_url, dkr_file=build.dockerfile_path,
                           dkr_image=build.docker_image))
         cmd = ['python', '-c', subcmd]
