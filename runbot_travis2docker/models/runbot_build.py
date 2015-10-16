@@ -141,12 +141,12 @@ class RunbotBuild(models.Model):
         build.write(v)
         build.github_status()
         # end copy and paste from original method
-        subcmd = ("exec(\"import sys;from docker import Client;client=Client('{url}');"
-                  "client.start('{dkr_cont}');\\nfor line in client.logs"
-                  "(container='{dkr_cont}', stream=True, stdout=True,"
-                  " stderr=True):\\n\\tsys.stdout.write(line)\\n\\tsys.stdout."
-                  "flush()\\n\")").format(url=self.base_url,
-                                          dkr_cont=build.docker_container)
+        subcmd = (("exec(\"import sys;from docker import Client;client="
+                   "Client('{url}');client.start('{dkr_cont}');\\nfor line"
+                   " in client.logs(container='{dkr_cont}', stream=True,"
+                   " stdout=True, stderr=True):\\n\\tsys.stdout.write(line)"
+                   "\\n\\tsys.stdout.flush()\\n\")")
+                  .format(url=self.base_url, dkr_cont=build.docker_container))
         cmd = ['python', '-c', subcmd]
         return self.spawn(cmd, lock_path, log_path)
 
