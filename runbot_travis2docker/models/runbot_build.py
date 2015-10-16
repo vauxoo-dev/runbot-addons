@@ -73,7 +73,7 @@ class RunbotBuild(models.Model):
             return MAGIC_PID_RUN_NEXT_JOB
         subcmd = (("exec(\"import sys;"
                    "from docker import Client;client=Client('{url}');"
-                   "steps=client.build('{dkr_file}', nocache=False,"
+                   "steps=client.build('{dkr_file}', nocache=True,"
                    " tag='{dkr_image}')\\n"
                    "for step in steps: sys.stdout.write(step['stream'])\")")
                   .format(url=self.base_url, dkr_file=build.dockerfile_path,
