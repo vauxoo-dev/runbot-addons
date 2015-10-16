@@ -71,7 +71,11 @@ class RunbotBuild(models.Model):
                 or build.result == 'skipped':
             _logger.info('docker build skipping job_10_test_base')
             return MAGIC_PID_RUN_NEXT_JOB
-        subcmd = "exec(\"from docker import Client;client=Client('{url}');steps=client.build('{dkr_file}', nocache=True, tag='{dkr_image}')\\nfor step in steps: print step\")".format(url=self.base_url, dkr_file=build.dockerfile_path, dkr_image=build.docker_image)
+        subcmd = (("exec(\"from docker import Client;client=Client('{url}');"
+                   "steps=client.build('{dkr_file}', nocache=True,"
+                   " tag='{dkr_image}')\\nfor step in steps: print step\")")
+                  .format(url=self.base_url, dkr_file=build.dockerfile_path,
+                          dkr_image=build.docker_image))
         cmd = ['python', '-c', subcmd]
         return self.spawn(cmd, lock_path, log_path)
 
@@ -90,9 +94,18 @@ class RunbotBuild(models.Model):
             if "no such id" in error.explanation:
                 _logger.info('Container not found')
         environment = ["INSTANCE_ALIVE=1", "RUNBOT=1"]
-        self.client.create_container(environment=environment, ports=[build.port, 8069], name=build.docker_container, image=build.docker_image, stdin_open=True, tty=True)
+        self.client.create_container(environment=environment,
+                                     ports=[build.port, 8069],
+                                     name=build.docker_container,
+                                     image=build.docker_image,
+                                     stdin_open=True, tty=True)
         self.client.start(build.docker_container)
-        subcmd = "exec(\"import sys;from docker import Client;client=Client('{url}', timeout=None);\\nfor line in client.logs(container='{dkr_cont}', stream=True, stdout=True, stderr=True):\\n\\tsys.stdout.write(line)\\n\\tsys.stdout.flush()\\n\")".format(url=self.base_url, dkr_cont=build.docker_container)
+        subcmd = (("exec(\"import sys;from docker import Client;"
+                   "client=Client('{url}', timeout=None);\\nfor line in"
+                   " client.logs(container='{dkr_cont}', stream=True,"
+                   " stdout=True, stderr=True):\\n\\tsys.stdout.write(line)"
+                   "\\n\\tsys.stdout.flush()\\n\")")
+                  .format(url=self.base_url, dkr_cont=build.docker_container))
         cmd = ['python', '-c', subcmd]
         _logger.info('Executing tests: %s', build.docker_container)
         return self.spawn(cmd, lock_path, log_path)
@@ -128,7 +141,12 @@ class RunbotBuild(models.Model):
         build.write(v)
         build.github_status()
         # end copy and paste from original method
-        subcmd = "exec(\"from docker import Client;client=Client('{url}');client.start('{dkr_cont}');\\nfor line in client.logs(container='{dkr_cont}', stream=True, stdout=True, stderr=True):\\n\\tsys.stdout.write(line)\\n\\tsys.stdout.flush()\\n\")".format(url=self.base_url, dkr_cont=build.docker_container)
+        subcmd = ("exec(\"import sys;from docker import Client;client=Client('{url}');"
+                  "client.start('{dkr_cont}');\\nfor line in client.logs"
+                  "(container='{dkr_cont}', stream=True, stdout=True,"
+                  " stderr=True):\\n\\tsys.stdout.write(line)\\n\\tsys.stdout."
+                  "flush()\\n\")").format(url=self.base_url,
+                                          dkr_cont=build.docker_container)
         cmd = ['python', '-c', subcmd]
         return self.spawn(cmd, lock_path, log_path)
 
@@ -166,7 +184,8 @@ class RunbotBuild(models.Model):
         for build in self.browse(cr, uid, ids, context=context):
             if build.docker_container:
                 try:
-                    self.client.remove_container(build.docker_container, force=True)
+                    self.client.remove_container(build.docker_container,
+                                                 force=True)
                     self.client.remove_image(build.docker_image, force=True)
                 except docker.errors.APIError as error:
                     if "no such id" in error.explanation:
