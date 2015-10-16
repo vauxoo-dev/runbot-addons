@@ -74,14 +74,9 @@ class RunbotBuild(models.Model):
         subcmd = (("exec(\"import sys;"
                    "from docker import Client;client=Client('{url}');"
                    "steps=client.build('{dkr_file}', nocache=True,"
-<<<<<<< HEAD
-                   " tag='{dkr_image}')\\n"
-                   "for step in steps: sys.stdout.write(step['stream'])\")")
-=======
                    " tag='{dkr_image}', decode=True)\\n"
                    "for step in steps:"
                    " sys.stdout.write(step['stream'].encode('utf-8'))\")")
->>>>>>> 955e210... [FIX] runbot_travis2docker: job_30 logs now are shown correctly and the ports are being exposed
                   .format(url=self.base_url, dkr_file=build.dockerfile_path,
                           dkr_image=build.docker_image))
         cmd = ['python', '-c', subcmd]
