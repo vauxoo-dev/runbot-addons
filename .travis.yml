@@ -15,6 +15,9 @@ addons:
       - python-serial
       - python-matplotlib  # For runbot badges
 
+services:
+  - docker
+
 env:
   global:
   - VERSION="8.0" TESTS="0" LINT_CHECK="0"
