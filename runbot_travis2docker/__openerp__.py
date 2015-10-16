@@ -15,7 +15,7 @@
     ],
     "external_dependencies": {
         "python": ['travis2docker'],
-        "bin": ['docker'],
+#        "bin": ['docker'],
     },
     "data": [
         "views/runbot_repo_view.xml",
