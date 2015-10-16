@@ -30,6 +30,7 @@ install:
   - git clone https://github.com/OCA/maintainer-quality-tools.git ${HOME}/maintainer-quality-tools
   - export PATH=${HOME}/maintainer-quality-tools/travis:${PATH}
   - pip install gitlab3
+  - pip install docker-py
   - travis_install_nightly
   - git clone --depth=1 https://github.com/odoo/odoo-extra ~/odoo-extra
   # odoo-extra has a bunch of v9 modules which aren't compatible, remove them
