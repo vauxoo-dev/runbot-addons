@@ -74,8 +74,14 @@ class RunbotBuild(models.Model):
         subcmd = (("exec(\"import sys;"
                    "from docker import Client;client=Client('{url}');"
                    "steps=client.build('{dkr_file}', nocache=True,"
+<<<<<<< HEAD
                    " tag='{dkr_image}')\\n"
                    "for step in steps: sys.stdout.write(step['stream'])\")")
+=======
+                   " tag='{dkr_image}', decode=True)\\n"
+                   "for step in steps:"
+                   " sys.stdout.write(step['stream'].encode('utf-8'))\")")
+>>>>>>> 955e210... [FIX] runbot_travis2docker: job_30 logs now are shown correctly and the ports are being exposed
                   .format(url=self.base_url, dkr_file=build.dockerfile_path,
                           dkr_image=build.docker_image))
         cmd = ['python', '-c', subcmd]
@@ -92,20 +98,23 @@ class RunbotBuild(models.Model):
             return MAGIC_PID_RUN_NEXT_JOB
         try:
             self.client.remove_container(build.docker_container, force=True)
-        except docker.errors.APIError as error:
-            if "no such id" in error.explanation:
-                _logger.info('Container not found')
+        except docker.errors.APIError:
+            pass
         environment = ["INSTANCE_ALIVE=1", "RUNBOT=1"]
+        hconfig = self.client.create_host_config(port_bindings={
+                                                 8069: build.port})
         self.client.create_container(environment=environment,
-                                     ports=[build.port, 8069],
+                                     ports=[8069],
                                      name=build.docker_container,
                                      image=build.docker_image,
-                                     stdin_open=True, tty=True)
+                                     stdin_open=True, tty=True,
+                                     host_config=hconfig)
         self.client.start(build.docker_container)
         subcmd = (("exec(\"import sys;from docker import Client;"
                    "client=Client('{url}', timeout=None);\\nfor line in"
                    " client.logs(container='{dkr_cont}', stream=True,"
-                   " stdout=True, stderr=True):\\n\\tsys.stdout.write(line)"
+                   " stdout=True, stderr=True):\\n\\t"
+                   "sys.stdout.write(line.encode('utf-8'))"
                    "\\n\\tsys.stdout.flush()\\n\")")
                   .format(url=self.base_url, dkr_cont=build.docker_container))
         cmd = ['python', '-c', subcmd]
@@ -145,8 +154,9 @@ class RunbotBuild(models.Model):
         # end copy and paste from original method
         subcmd = (("exec(\"import sys;from docker import Client;client="
                    "Client('{url}');client.start('{dkr_cont}');\\nfor line"
-                   " in client.logs(container='{dkr_cont}', stream=True,"
-                   " stdout=True, stderr=True):\\n\\tsys.stdout.write(line)"
+                   " in client.attach(container='{dkr_cont}', stream=True,"
+                   " stdout=True, stderr=True, logs=False):\\n\\t"
+                   "sys.stdout.write(line.encode('utf-8'))"
                    "\\n\\tsys.stdout.flush()\\n\")")
                   .format(url=self.base_url, dkr_cont=build.docker_container))
         cmd = ['python', '-c', subcmd]
@@ -186,6 +196,7 @@ class RunbotBuild(models.Model):
         for build in self.browse(cr, uid, ids, context=context):
             if build.docker_container:
                 try:
+                    pass
                     self.client.remove_container(build.docker_container,
                                                  force=True)
                     self.client.remove_image(build.docker_image, force=True)
