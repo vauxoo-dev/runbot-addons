@@ -31,12 +31,10 @@ virtualenv:
 install:
   - git clone https://github.com/vauxoo-dev/maintainer-quality-tools.git -b master-oca-t2d-compatibility ${HOME}/maintainer-quality-tools
   - export PATH=${HOME}/maintainer-quality-tools/travis:${PATH}
-  - pip install gitlab3
-  - pip install travis2docker
   - travis_install_nightly
-  - git clone --depth=1 https://github.com/odoo/odoo-extra ~/odoo-extra
+  - pip install -r requirements.txt
   # odoo-extra has a bunch of v9 modules which aren't compatible, remove them
-  - (cd ~/odoo-extra; rm -rf $(ls | grep -v runbot$))
+  - (cd ${HOME}/dependencies/odoo-extra; rm -rf $(ls | grep -v runbot$))
   - if [ "${TESTS}" == "1"  ]; then docker pull vauxoo/odoo-80-image-shippable-auto; fi
 
 script:
