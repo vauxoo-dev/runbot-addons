@@ -23,6 +23,12 @@ class TestRunbotJobs(TransactionCase):
         self.repo = self.repo_obj.search([
             ('is_travis2docker_build', '=', True)], limit=1)
         self.repo_domain = [('repo_id', '=', self.repo.id)]
+        self.cron = self.env.ref('runbot.repo_cron')
+        self.cron.write({'active': False})
+
+    def tearDown(self):
+        super(TestRunbotJobs, self).tearDown()
+        self.cron.write({'active': True})
 
     def wait_change_job(self, current_job, build,
                         loops=36, timeout=10):
