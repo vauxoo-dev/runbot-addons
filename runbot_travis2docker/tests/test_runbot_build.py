@@ -38,7 +38,7 @@ class TestRunbotJobs(TransactionCase):
         self.assertEqual(len(self.repo), 1, "Repo not found")
         self.repo.update()
         branch = self.branch_obj.search(self.repo_domain + [
-            ('name', 'like', 'fast')], limit=1)
+            ('name', 'like', 'fast-travis-oca')], limit=1)
         self.assertEqual(len(branch), 1, "Branch not found")
         self.build_obj.search([('branch_id', '=', branch.id)]).unlink()
 
