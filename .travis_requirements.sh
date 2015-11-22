@@ -13,7 +13,8 @@ find ${HOME}/dependencies/odoo-extra/runbot -name runbot.py -exec sed -i  '/from
 find ${HOME}/dependencies/odoo-extra/runbot -name __openerp__.py -exec sed -i  '/'matplotlib'/d' {} \;
 
 # Change cron interval to avoid interference with tests
-find ${HOME}/dependencies/odoo-extra/runbot -name runbot.xml -exec sed -i "s/'interval_number'\>1\</'interval_number'\>60\</g" {} \;
+find ${HOME}/dependencies/odoo-extra/runbot -name runbot.xml -exec sed -i "s/'interval_number'>1</'interval_number'>60</g" {} \;
+
 
 # Disabling test_crawl (native runbot fail)
 find ${HOME} -name __init__.py -exec sed -i  "/import test_crawl/d" {} \;
