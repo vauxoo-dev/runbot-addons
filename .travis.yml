@@ -44,9 +44,9 @@ install:
   - find ${HOME}/dependencies/odoo-extra/runbot -name res_config_view.xml -exec sed -i 's/base.menu_config/base.menu_administration/g' {} \;
 
   # Disabling matplotlib by https://github.com/travis-ci/travis-ci/issues/4948
-  - find ${HOME} -name runbot.py -exec sed -i  '/from matplotlib.font_manager import FontProperties/d' {} \;
-  - find ${HOME} -name runbot.py -exec sed -i  '/from matplotlib.textpath import TextToPath/d' {} \;
-  - find ${HOME} -name __openerp__.py -exec sed -i  '/'matplotlib'/d' {} \;
+  - find ${HOME}/dependencies/odoo-extra/runbot -name runbot.py -exec sed -i  '/from matplotlib.font_manager import FontProperties/d' {} \;
+  - find ${HOME}/dependencies/odoo-extra/runbot -name runbot.py -exec sed -i  '/from matplotlib.textpath import TextToPath/d' {} \;
+  - find ${HOME}/dependencies/odoo-extra/runbot -name __openerp__.py -exec sed -i  '/'matplotlib'/d' {} \;
 
   # Disabling test_crawl (native runbot fail)
   - find ${HOME} -name __init__.py -exec sed -i  "/import test_crawl/d" {} \;
