@@ -6,7 +6,10 @@ python:
 sudo: required  # Required for docker
 services:
   - docker
-cache: pip
+cache:
+  apt: true
+  directories:
+    - $HOME/.cache/pip
 
 addons:
   apt:
