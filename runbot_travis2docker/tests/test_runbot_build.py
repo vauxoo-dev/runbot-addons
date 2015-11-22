@@ -33,6 +33,7 @@ class TestRunbotJobs(TransactionCase):
     def wait_change_job(self, current_job, build,
                         loops=36, timeout=10):
         for loop in range(loops):
+            _logger.info("Repo Cron to wait change of state")
             self.repo.cron()
             if build.job != current_job:
                 break
@@ -42,12 +43,14 @@ class TestRunbotJobs(TransactionCase):
     def test_jobs(self):
         'Create build and run all jobs'
         self.assertEqual(len(self.repo), 1, "Repo not found")
+        _logger.info("Repo update to get branches")
         self.repo.update()
         branch = self.branch_obj.search(self.repo_domain + [
             ('name', 'like', 'fast-travis-oca')], limit=1)
         self.assertEqual(len(branch), 1, "Branch not found")
         self.build_obj.search([('branch_id', '=', branch.id)]).unlink()
 
+        _logger.info("Repo update to create builds")
         self.repo.update()
         build = self.build_obj.search([
             ('branch_id', '=', branch.id)], limit=1)
@@ -55,6 +58,7 @@ class TestRunbotJobs(TransactionCase):
         self.assertEqual(
             build.state, u'pending', "State should be pending")
 
+        _logger.info("Repo Cron to change state to pending -> testing")
         self.repo.cron()
         self.assertEqual(
             build.state, u'testing', "State should be testing")
@@ -80,14 +84,18 @@ class TestRunbotJobs(TransactionCase):
             build.state, u'running',
             "Job state should be running")
 
+        _logger.info("Wait before of read job_30_run log")
         time.sleep(360)
         _logger.info(open(
             os.path.join(build.path(), "logs",
                          "job_30_run.txt")).read())
 
+        _logger.info("Build running")
         self.assertEqual(
             build.state, u'running',
             "Job state should be running still")
+
+        _logger.info("Testing connection")
         user_ids = self.connection_test(build)
         self.assertEqual(
             len(user_ids) >= 1, True, "Failed connection test")
