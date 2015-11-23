@@ -39,7 +39,9 @@ install:
   - if [ "${TESTS}" == "1"  ]; then ${TRAVIS_BUILD_DIR}/.travis_requirements.sh; fi
 
 script:
+  - df -H
   - travis_run_tests
+  - df -H
 
 after_success:
   - travis_after_tests_success
