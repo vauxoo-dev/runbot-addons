@@ -10,6 +10,8 @@ import xmlrpclib
 
 from openerp.tests.common import TransactionCase
 
+from openerp.tools.misc import mute_logger
+
 _logger = logging.getLogger(__name__)
 
 
@@ -25,11 +27,19 @@ class TestRunbotJobs(TransactionCase):
         self.repo_domain = [('repo_id', '=', self.repo.id)]
         self.cron = self.env.ref('runbot.repo_cron')
         self.cron.write({'active': False})
+        self.build = None
 
     def tearDown(self):
         super(TestRunbotJobs, self).tearDown()
         self.cron.write({'active': True})
+        _logger.info('job_10_test_base log' +
+                     open(os.path.join(self.build.path(), "logs",
+                                       "job_10_test_base.txt")).read())
+        _logger.info('job_20_test_all log' +
+                     open(os.path.join(self.build.path(), "logs",
+                                       "job_20_test_all.txt")).read())
 
+    @mute_logger('openerp.addons.runbot.runbot')
     def wait_change_job(self, current_job, build,
                         loops=36, timeout=10):
         for loop in range(loops):
@@ -52,60 +62,55 @@ class TestRunbotJobs(TransactionCase):
 
         _logger.info("Repo update to create builds")
         self.repo.update()
-        build = self.build_obj.search([
+        self.build = self.build_obj.search([
             ('branch_id', '=', branch.id)], limit=1)
-        self.assertEqual(len(build) == 0, False, "Build not found")
+        self.assertEqual(len(self.build) == 0, False, "Build not found")
         self.assertEqual(
-            build.state, u'pending', "State should be pending")
+            self.build.state, u'pending', "State should be pending")
 
         _logger.info("Repo Cron to change state to pending -> testing")
         self.repo.cron()
         self.assertEqual(
-            build.state, u'testing', "State should be testing")
+            self.build.state, u'testing', "State should be testing")
         self.assertEqual(
-            build.job, u'job_10_test_base',
+            self.build.job, u'job_10_test_base',
             "Job should be job_10_test_base")
-        new_current_job = self.wait_change_job(build.job, build)
-        _logger.info(open(os.path.join(build.path(), "logs",
-                                       "job_10_test_base.txt")).read())
+        new_current_job = self.wait_change_job(self.build.job, self.build)
 
         self.assertEqual(
             new_current_job, u'job_20_test_all',
             "Job should be job_20_test_all")
-        new_current_job = self.wait_change_job(new_current_job, build)
-        _logger.info(open(
-            os.path.join(build.path(), "logs",
-                         "job_20_test_all.txt")).read())
+        new_current_job = self.wait_change_job(new_current_job, self.build)
 
         self.assertEqual(
             new_current_job, u'job_30_run',
             "Job should be job_30_run")
         self.assertEqual(
-            build.state, u'running',
+            self.build.state, u'running',
             "Job state should be running")
 
         _logger.info("Wait before of read job_30_run log")
         time.sleep(360)
         _logger.info(open(
-            os.path.join(build.path(), "logs",
+            os.path.join(self.build.path(), "logs",
                          "job_30_run.txt")).read())
 
         _logger.info("Build running")
         self.assertEqual(
-            build.state, u'running',
+            self.build.state, u'running',
             "Job state should be running still")
 
         _logger.info("Testing connection")
-        user_ids = self.connection_test(build)
+        user_ids = self.connection_test(self.build)
         self.assertEqual(
             len(user_ids) >= 1, True, "Failed connection test")
 
-        build.kill()
+        self.build.kill()
         self.assertEqual(
-            build.state, u'done', "Job state should be done")
+            self.build.state, u'done', "Job state should be done")
 
         self.assertEqual(
-            build.result, u'ok', "Job result should be ok")
+            self.build.result, u'ok', "Job result should be ok")
 
     def connection_test(self, build):
         username = "admin"
