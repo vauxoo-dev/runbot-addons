@@ -85,7 +85,7 @@ class TestRunbotJobs(TransactionCase):
             "Job state should be running")
 
         _logger.info("Wait before of read job_30_run log")
-        time.sleep(360)
+        time.sleep(30)
         _logger.info(open(
             os.path.join(build.path(), "logs",
                          "job_30_run.txt")).read())
