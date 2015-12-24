@@ -20,7 +20,7 @@
 #
 ##############################################################################
 
-from openerp.osv import orm
+from openerp.osv import orm, fields
 
 from .runbot_repo import escape_branch_name
 
@@ -32,8 +32,8 @@ class runbot_build(orm.Model):
         r = {}
         other_ids = []
         for build in self.browse(cr, uid, ids, context=context):
-            if (build.branch_id.merge_request_id
-                    or '/' not in build.branch_id.name):
+            if (build.branch_id.merge_request_id or
+                    '/' not in build.branch_id.name):
                 nickname = escape_branch_name(build.branch_id.name)
                 r[build.id] = "%05d-%s-%s" % (
                     build.id, nickname, build.name[:6]
@@ -45,3 +45,8 @@ class runbot_build(orm.Model):
                 cr, uid, other_ids, field_name, arg, context=context
             ))
         return r
+
+    _columns = {
+        'dest': fields.function(
+            _get_dest, type='char', string='Dest', readonly=1, store=True)
+    }

@@ -24,7 +24,7 @@
     'name': 'Runbot Skip Tests',
     'category': 'Website',
     'summary': 'Skip tests on runbot builds',
-    'version': '1.0',
+    'version': '8.0.1.0.0',
     'description': """
 Runbot Skip Tests
 =================
@@ -38,7 +38,7 @@ Contributors
 ------------
 * Sandy Carter (sandy.carter@savoirfairelinux.com)
 """,
-    'author': 'Savoir-faire Linux',
+    'author': "Savoir-faire Linux,Odoo Community Association (OCA)",
     'depends': ['runbot'],
     'data': [
     ],
