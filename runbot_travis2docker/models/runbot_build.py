@@ -5,18 +5,19 @@
 
 import logging
 import os
-import time
 import sys
-
-import openerp
-from openerp import fields, models
-from openerp.addons.runbot_build_instructions.runbot_build \
-    import MAGIC_PID_RUN_NEXT_JOB
-from openerp.addons.runbot.runbot import (
-    grep, rfind, run, _re_error, _re_warning)
+import time
+import traceback
 
 from travis2docker.git_run import GitRun
 from travis2docker.travis2docker import main as t2d
+
+import openerp
+from openerp import fields, models
+from openerp.addons.runbot.runbot import (_re_error, _re_warning, grep, rfind,
+                                          run)
+from openerp.addons.runbot_build_instructions.runbot_build import \
+    MAGIC_PID_RUN_NEXT_JOB
 
 _logger = logging.getLogger(__name__)
 
@@ -95,7 +96,8 @@ class RunbotBuild(models.Model):
         ] if 'refs/pull/' in build.branch_id.name else [
             '-e', 'TRAVIS_PULL_REQUEST=false',
             ]
-        branch_base = build._get_closest_branch_name(build.repo_id.id)
+        branch_base = build._get_closest_branch_name(
+            build.repo_id.id)[1].split('/')[-1]
         cmd = [
             'docker', 'run',
             '-e', 'INSTANCE_ALIVE=1',
@@ -160,6 +162,7 @@ class RunbotBuild(models.Model):
             try:
                 path_scripts = t2d()
             except BaseException:  # TODO: Add custom exception to t2d
+                _logger.error(traceback.format_exc())
                 path_scripts = []
             for path_script in path_scripts:
                 df_content = open(os.path.join(
