@@ -80,6 +80,7 @@ class RunbotBuild(models.Model):
                 or build.result == 'skipped':
             _logger.info('docker build skipping job_10_test_base')
             return MAGIC_PID_RUN_NEXT_JOB
+        image_cached = False
         if 'refs/pull/' in build.branch_id.name:
             image_cached = build.get_docker_image_cached(build)
             # TODO: Check if exists image_cached
