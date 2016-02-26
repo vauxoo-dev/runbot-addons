@@ -5,6 +5,7 @@
 
 import logging
 import os
+import subprocess
 import sys
 import time
 import traceback
@@ -48,18 +49,50 @@ def custom_build(func):
 class RunbotBuild(models.Model):
     _inherit = 'runbot.build'
 
-    dockerfile_path = fields.Char()
-    docker_image = fields.Char()
-    docker_container = fields.Char()
+    dockerfile_path = fields.Char(
+        help='Dockerfile path created by travis2docker')
+    docker_image = fields.Char(help='New image name to create')
+    docker_container = fields.Char(help='New container name to create')
+    docker_image_cache = fields.Char(help='Image name to re-use with cache')
+    docker_cache = fields.Boolean(
+        help="Use of docker image cache. True: If is a PR and "
+        "don'thave changes in .travis.yml and image cached is created.")
+    branch_closest = fields.Char(help="Branch closest of branch base.")
+    is_pull_request = fields.Boolean(help="True is a pull request.")
+    branch_short_name = fields.Char(help='Branch short name e.g. pull/1, 8.0')
 
-    def get_docker_image(self, cr, uid, build, context=None):
+    def get_docker_image(self, branch_closest=None):
+        self.ensure_one()
+        build = self
         git_obj = GitRun(build.repo_id.name, '')
-        image_name = git_obj.owner + '-' + git_obj.repo + ':' + \
-            build.name[:7] + '_' + os.path.basename(build.dockerfile_path)
+        branch = branch_closest or build.name[:7]
+        registry_host = build.repo_id.docker_registry_server + '/' \
+            if build.repo_id.docker_registry_server else ""
+        image_name = registry_host + \
+            git_obj.owner + '-' + git_obj.repo + ':' + branch + \
+            '_' + os.path.basename(build.dockerfile_path)
+        if branch_closest:
+            image_name += '_cached'
         return image_name.lower()
 
-    def get_docker_container(self, cr, uid, build, context=None):
-        return "build_%d" % (build.sequence)
+    def get_docker_container(self):
+        self.ensure_one()
+        return "build_%d" % (self.sequence)
+
+    def create_image_cache(self):
+        for build in self:
+            if not build.is_pull_request and build.result in ['ok', 'warn']:
+                image_cached = build.get_docker_image(build.branch_closest)
+                cmd = [
+                    'docker', 'commit', '-m', 'runbot_cache',
+                    build.docker_container, image_cached,
+                ]
+                _logger.info('Generating image cache: ' + ' '.join(cmd))
+                run(cmd)
+                if build.repo_id.docker_registry_server:
+                    cmd = ['docker', 'push', image_cached]
+                    _logger.info('Pushing image: ' + ' '.join(cmd))
+                    run(cmd)
 
     def job_10_test_base(self, cr, uid, build, lock_path, log_path):
         'Build docker image'
@@ -70,13 +103,15 @@ class RunbotBuild(models.Model):
                 or build.result == 'skipped':
             _logger.info('docker build skipping job_10_test_base')
             return MAGIC_PID_RUN_NEXT_JOB
-        cmd = [
-            'docker', 'build',
-            "--no-cache",
-            "-t", build.docker_image,
-            build.dockerfile_path,
-        ]
-        return self.spawn(cmd, lock_path, log_path)
+        if not build.docker_cache:
+            cmd = [
+                'docker', 'build',
+                "--no-cache",
+                "-t", build.docker_image,
+                build.dockerfile_path,
+            ]
+            return self.spawn(cmd, lock_path, log_path)
+        return MAGIC_PID_RUN_NEXT_JOB
 
     def job_20_test_all(self, cr, uid, build, lock_path, log_path):
         'create docker container'
@@ -89,27 +124,31 @@ class RunbotBuild(models.Model):
             return MAGIC_PID_RUN_NEXT_JOB
         run(['docker', 'rm', '-f', build.docker_container])
         pr_cmd_env = [
-            '-e', 'TRAVIS_PULL_REQUEST=true',
+            '-e', 'TRAVIS_PULL_REQUEST=' +
+            build.branch_short_name.replace('pull/', ''),
             '-e', 'CI_PULL_REQUEST=' + build.branch_id.branch_name,
             # coveralls process CI_PULL_REQUEST if CIRCLE is enabled
             '-e', 'CIRCLECI=1',
-        ] if 'refs/pull/' in build.branch_id.name else [
-            '-e', 'TRAVIS_PULL_REQUEST=false',
-            ]
-        branch_base = build._get_closest_branch_name(
-            build.repo_id.id)[1].split('/')[-1]
+        ] if build.is_pull_request else [
+            '-e', 'TRAVIS_PULL_REQUEST=false', '-e', 'DB_BACKUP=1',
+        ]
+        cache_cmd_env = [
+            '-e', 'CACHE=1',
+        ] if build.docker_cache else []
         cmd = [
             'docker', 'run',
             '-e', 'INSTANCE_ALIVE=1',
-            '-e', 'TRAVIS_BRANCH=' + branch_base,
+            '-e', 'TRAVIS_BRANCH=' + build.branch_closest,
+            '-e', 'TRAVIS_COMMIT=' + build.name,
             '-e', 'RUNBOT=1',
             '-e', 'UNBUFFER=1',
             '-e', 'START_SSH=1',
             '-p', '%d:%d' % (build.port, 8069),
             '-p', '%d:%d' % (build.port + 1, 22),
-        ] + pr_cmd_env + [
+        ] + pr_cmd_env + cache_cmd_env + [
             '--name=' + build.docker_container, '-t',
-            build.docker_image,
+            build.docker_image_cache
+            if build.docker_cache else build.docker_image,
         ]
         return self.spawn(cmd, lock_path, log_path)
 
@@ -144,7 +183,7 @@ class RunbotBuild(models.Model):
         build.write(v)
         build.github_status()
         # end copy and paste from original method
-
+        build.create_image_cache()
         cmd = ['docker', 'start', '-i', build.docker_container]
         return self.spawn(cmd, lock_path, log_path)
 
@@ -171,9 +210,43 @@ class RunbotBuild(models.Model):
                 if ' TESTS=1' in df_content or ' TESTS="1"' in df_content or \
                         " TESTS='1'" in df_content:
                     build.dockerfile_path = path_script
-                    build.docker_image = self.get_docker_image(cr, uid, build)
-                    build.docker_container = self.get_docker_container(
-                        cr, uid, build)
+                    open(os.path.join(path_script, "Dockerfile"), "w").write(
+                        df_content + '\n' + 'VOLUME /var/lib/postgresql')
+                    build.docker_image = build.get_docker_image()
+                    build.docker_container = build.get_docker_container()
+                    build.branch_closest = build._get_closest_branch_name(
+                        build.repo_id.id)[1].split('/')[-1]
+                    build.branch_short_name = branch_short_name
+                    if 'refs/pull/' in build.branch_id.name:
+                        build.is_pull_request = True
+                        if build.repo_id.use_docker_cache:
+                            is_changed_travis_yml = build.repo_id.git([
+                                'diff', '--name-only',
+                                build.branch_closest + '..' + build.name,
+                                '--', '.travis.yml'])
+                            build.docker_image_cache = build.get_docker_image(
+                                build.branch_closest)
+                            if build.repo_id.docker_registry_server:
+                                cmd = ["docker", "pull",
+                                       build.docker_image_cache]
+                                _logger.info("Pulling image cache: %s",
+                                             ' '.join(cmd))
+                                run(cmd)
+                            cmd = [
+                                "docker", "images", "-q",
+                                build.docker_image_cache]
+                            # TODO: Build the branch stable image in all host
+                            dkr_img_res = subprocess.check_output(cmd).\
+                                strip(' \r\n')
+                            if is_changed_travis_yml:
+                                build.docker_cache = False
+                            elif not dkr_img_res:
+                                # Don't exists image
+                                build.docker_cache = False
+                            else:
+                                build.docker_cache = build.repo_id.\
+                                    use_docker_cache
+
                     if build.id in to_be_skipped_ids:
                         to_be_skipped_ids.remove(build.id)
                     break
