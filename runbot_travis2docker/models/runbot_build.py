@@ -58,6 +58,16 @@ class RunbotBuild(models.Model):
             build.name[:7] + '_' + os.path.basename(build.dockerfile_path)
         return image_name.lower()
 
+    def get_docker_image_cached(self, cr, uid, build, context=None):
+        branch = build.branch_id.branch_name
+        if 'refs/pull/' in build.branch_id.name:
+            branch = build._get_closest_branch_name(
+                build.repo_id.id)[1].split('/')[-1]
+        git_obj = GitRun(build.repo_id.name, '')
+        image_name = git_obj.owner + '-' + git_obj.repo + ':' + branch + \
+            '_' + os.path.basename(build.dockerfile_path)
+        return image_name
+
     def get_docker_container(self, cr, uid, build, context=None):
         return "build_%d" % (build.sequence)
 
@@ -70,13 +80,19 @@ class RunbotBuild(models.Model):
                 or build.result == 'skipped':
             _logger.info('docker build skipping job_10_test_base')
             return MAGIC_PID_RUN_NEXT_JOB
-        cmd = [
-            'docker', 'build',
-            "--no-cache",
-            "-t", build.docker_image,
-            build.dockerfile_path,
-        ]
-        return self.spawn(cmd, lock_path, log_path)
+        if 'refs/pull/' in build.branch_id.name:
+            image_cached = build.get_docker_image_cached(build)
+            # TODO: Check if exists image_cached
+            build.docker_image = image_cached
+        if not image_cached:
+            cmd = [
+                'docker', 'build',
+                "--no-cache",
+                "-t", build.docker_image,
+                build.dockerfile_path,
+            ]
+            return self.spawn(cmd, lock_path, log_path)
+        return MAGIC_PID_RUN_NEXT_JOB
 
     def job_20_test_all(self, cr, uid, build, lock_path, log_path):
         'create docker container'
@@ -113,6 +129,17 @@ class RunbotBuild(models.Model):
         ]
         return self.spawn(cmd, lock_path, log_path)
 
+    def create_image_cache(self, cr, uid, ids, context=None):
+        for build in self.browse(cr, uid, ids, context=context):
+            if 'refs/pull/' not in build.branch_id.name:
+                image_cached = build.get_docker_image_cached(build)
+                cmd = [
+                    'docker', 'commit', '-m', 'runbot_cache',
+                    build.docker_container, image_cached,
+                ]
+                _logger.info('Generating image cache' + ' '.join(cmd))
+                run(cmd)
+
     def job_30_run(self, cr, uid, build, lock_path, log_path):
         'Run docker container with odoo server started'
         if not build.branch_id.repo_id.is_travis2docker_build:
@@ -144,7 +171,7 @@ class RunbotBuild(models.Model):
         build.write(v)
         build.github_status()
         # end copy and paste from original method
-
+        build.create_image_cache()
         cmd = ['docker', 'start', '-i', build.docker_container]
         return self.spawn(cmd, lock_path, log_path)
 
