@@ -49,8 +49,9 @@ class RunbotBuild(models.Model):
     _inherit = 'runbot.build'
 
     dockerfile_path = fields.Char()
-    docker_image = fields.Char()
+    docker_image = fields.Char(help='New image name to create')
     docker_container = fields.Char()
+    # docker_image_cache = fields.Char(help='Image name to re-use with cache')
 
     def get_docker_image(self, cr, uid, build, context=None):
         git_obj = GitRun(build.repo_id.name, '')
@@ -119,6 +120,7 @@ class RunbotBuild(models.Model):
             'docker', 'run',
             '-e', 'INSTANCE_ALIVE=1',
             '-e', 'TRAVIS_BRANCH=' + branch_base,
+            '-e', 'TRAVIS_COMMIT=' + build.name,
             '-e', 'RUNBOT=1',
             '-e', 'UNBUFFER=1',
             '-e', 'START_SSH=1',
