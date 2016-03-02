@@ -53,24 +53,33 @@ class RunbotBuild(models.Model):
     docker_container = fields.Char()
     # docker_image_cache = fields.Char(help='Image name to re-use with cache')
 
-    def get_docker_image(self, cr, uid, build, context=None):
+    def get_docker_image(self, branch_closest=None):
+        self.ensure_one()
+        build = self
         git_obj = GitRun(build.repo_id.name, '')
+        branch = branch_closest or build.name[:7]
         image_name = git_obj.owner + '-' + git_obj.repo + ':' + \
-            build.name[:7] + '_' + os.path.basename(build.dockerfile_path)
+            branch + '_' + os.path.basename(build.dockerfile_path)
+        if branch_closest:
+            image_name += '_cached'
         return image_name.lower()
 
-    def get_docker_image_cached(self, cr, uid, build, context=None):
-        branch = build.branch_id.branch_name
-        if 'refs/pull/' in build.branch_id.name:
-            branch = build._get_closest_branch_name(
-                build.repo_id.id)[1].split('/')[-1]
-        git_obj = GitRun(build.repo_id.name, '')
-        image_name = git_obj.owner + '-' + git_obj.repo + ':' + branch + \
-            '_' + os.path.basename(build.dockerfile_path)
-        return image_name
+    def get_docker_container(self):
+        self.ensure_one()
+        return "build_%d" % (self.sequence)
 
-    def get_docker_container(self, cr, uid, build, context=None):
-        return "build_%d" % (build.sequence)
+    def create_image_cache(self):
+        for build in self:
+            if 'refs/pull/' not in build.branch_id.name:
+                branch_closest = build._get_closest_branch_name(
+                    build.repo_id.id)[1].split('/')[-1]
+                image_cached = build.get_docker_image(branch_closest)
+                cmd = [
+                    'docker', 'commit', '-m', 'runbot_cache',
+                    build.docker_container, image_cached,
+                ]
+                _logger.info('Generating image cache' + ' '.join(cmd))
+                run(cmd)
 
     def job_10_test_base(self, cr, uid, build, lock_path, log_path):
         'Build docker image'
@@ -83,7 +92,9 @@ class RunbotBuild(models.Model):
             return MAGIC_PID_RUN_NEXT_JOB
         image_cached = False
         if 'refs/pull/' in build.branch_id.name:
-            image_cached = build.get_docker_image_cached(build)
+            branch_closest = build._get_closest_branch_name(
+                build.repo_id.id)[1].split('/')[-1]
+            image_cached = build.get_docker_image(branch_closest)
             # TODO: Check if exists image_cached
             build.docker_image = image_cached
         if not image_cached:
@@ -132,17 +143,6 @@ class RunbotBuild(models.Model):
             build.docker_image,
         ]
         return self.spawn(cmd, lock_path, log_path)
-
-    def create_image_cache(self, cr, uid, ids, context=None):
-        for build in self.browse(cr, uid, ids, context=context):
-            if 'refs/pull/' not in build.branch_id.name:
-                image_cached = build.get_docker_image_cached(build)
-                cmd = [
-                    'docker', 'commit', '-m', 'runbot_cache',
-                    build.docker_container, image_cached,
-                ]
-                _logger.info('Generating image cache' + ' '.join(cmd))
-                run(cmd)
 
     def job_30_run(self, cr, uid, build, lock_path, log_path):
         'Run docker container with odoo server started'
@@ -202,9 +202,8 @@ class RunbotBuild(models.Model):
                 if ' TESTS=1' in df_content or ' TESTS="1"' in df_content or \
                         " TESTS='1'" in df_content:
                     build.dockerfile_path = path_script
-                    build.docker_image = self.get_docker_image(cr, uid, build)
-                    build.docker_container = self.get_docker_container(
-                        cr, uid, build)
+                    build.docker_image = build.get_docker_image()
+                    build.docker_container = build.get_docker_container()
                     if build.id in to_be_skipped_ids:
                         to_be_skipped_ids.remove(build.id)
                     break
