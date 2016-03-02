@@ -48,10 +48,16 @@ def custom_build(func):
 class RunbotBuild(models.Model):
     _inherit = 'runbot.build'
 
-    dockerfile_path = fields.Char()
+    dockerfile_path = fields.Char(
+        help='Dockerfile path created by travis2docker')
     docker_image = fields.Char(help='New image name to create')
-    docker_container = fields.Char()
-    # docker_image_cache = fields.Char(help='Image name to re-use with cache')
+    docker_container = fields.Char(help='New container name to create')
+    docker_image_cache = fields.Char(help='Image name to re-use with cache')
+    docker_cache = fields.Boolean(
+        help="Use of docker cache. True: If is a PR and "
+        "don'thave changes in .travis.yml and image cached is created.")
+    branch_closest = fields.Char(help="Branch closest of branch base.")
+    is_pull_request = fields.Boolean(help="True is a pull request.")
 
     def get_docker_image(self, branch_closest=None):
         self.ensure_one()
@@ -70,10 +76,8 @@ class RunbotBuild(models.Model):
 
     def create_image_cache(self):
         for build in self:
-            if 'refs/pull/' not in build.branch_id.name:
-                branch_closest = build._get_closest_branch_name(
-                    build.repo_id.id)[1].split('/')[-1]
-                image_cached = build.get_docker_image(branch_closest)
+            if not build.is_pull_request:
+                image_cached = build.get_docker_image(build.branch_closest)
                 cmd = [
                     'docker', 'commit', '-m', 'runbot_cache',
                     build.docker_container, image_cached,
@@ -90,14 +94,7 @@ class RunbotBuild(models.Model):
                 or build.result == 'skipped':
             _logger.info('docker build skipping job_10_test_base')
             return MAGIC_PID_RUN_NEXT_JOB
-        image_cached = False
-        if 'refs/pull/' in build.branch_id.name:
-            branch_closest = build._get_closest_branch_name(
-                build.repo_id.id)[1].split('/')[-1]
-            image_cached = build.get_docker_image(branch_closest)
-            # TODO: Check if exists image_cached
-            build.docker_image = image_cached
-        if not image_cached:
+        if not build.docker_cache:
             cmd = [
                 'docker', 'build',
                 "--no-cache",
@@ -122,23 +119,21 @@ class RunbotBuild(models.Model):
             '-e', 'CI_PULL_REQUEST=' + build.branch_id.branch_name,
             # coveralls process CI_PULL_REQUEST if CIRCLE is enabled
             '-e', 'CIRCLECI=1',
-        ] if 'refs/pull/' in build.branch_id.name else [
-            '-e', 'TRAVIS_PULL_REQUEST=false',
-            ]
-        branch_base = build._get_closest_branch_name(
-            build.repo_id.id)[1].split('/')[-1]
+        ] if build.is_pull_request else ['-e', 'TRAVIS_PULL_REQUEST=false']
+        cache_cmd_env = [
+            '-e', 'CACHE=1',
+        ] if build.docker_cache else []
         cmd = [
             'docker', 'run',
             '-e', 'INSTANCE_ALIVE=1',
-            '-e', 'TRAVIS_BRANCH=' + branch_base,
+            '-e', 'TRAVIS_BRANCH=' + build.branch_closest,
             '-e', 'TRAVIS_COMMIT=' + build.name,
             '-e', 'RUNBOT=1',
             '-e', 'UNBUFFER=1',
             '-e', 'START_SSH=1',
-            '-e', 'CACHE=1',
             '-p', '%d:%d' % (build.port, 8069),
             '-p', '%d:%d' % (build.port + 1, 22),
-        ] + pr_cmd_env + [
+        ] + pr_cmd_env + cache_cmd_env + [
             '--name=' + build.docker_container, '-t',
             build.docker_image,
         ]
@@ -204,6 +199,18 @@ class RunbotBuild(models.Model):
                     build.dockerfile_path = path_script
                     build.docker_image = build.get_docker_image()
                     build.docker_container = build.get_docker_container()
+                    build.branch_closest = build._get_closest_branch_name(
+                        build.repo_id.id)[1].split('/')[-1]
+                    if 'refs/pull/' in build.branch_id.name:
+                        build.is_pull_request = True
+                        # TODO: Validate if has a .travis.yml change.
+                        # TODO: Validate if cached image don't exists.
+                        # TODO: Add a field in branch to avoid use cache
+                        build.docker_cache = True
+                        build.docker_image_cache = build.get_docker_image(
+                            build.branch_closest) \
+                            if build.docker_cache else False
+
                     if build.id in to_be_skipped_ids:
                         to_be_skipped_ids.remove(build.id)
                     break
