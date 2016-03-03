@@ -200,6 +200,9 @@ class RunbotBuild(models.Model):
                 if ' TESTS=1' in df_content or ' TESTS="1"' in df_content or \
                         " TESTS='1'" in df_content:
                     build.dockerfile_path = path_script
+                    # cmd = ['sed', '-ie', '"\\$aVOLUME /var/lib/postgresql"', path_script]
+                    open(os.path.join(path_script, "Dockerfile"), "w").write(
+                        df_content + '\n' + 'VOLUME /var/lib/postgresql')
                     build.docker_image = build.get_docker_image()
                     build.docker_container = build.get_docker_container()
                     build.branch_closest = build._get_closest_branch_name(
