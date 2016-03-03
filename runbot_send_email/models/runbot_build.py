@@ -151,20 +151,22 @@ class RunbotBuild(models.Model):
 
     @api.multi
     def send_email(self):
-        name_build = self.dest
         email_to = self.email_follower
-        partner_obj = self.env['res.partner']
-        partner_id = partner_obj.find_or_create(email_to)
-        partner = partner_obj.browse(partner_id)
-        if email_to and partner not in self.message_partner_ids:
-            self.message_subscribe([partner.id])
-        email_act = self.action_send_email()
-        if email_act and email_act.get('context'):
-            email_ctx = email_act['context']
-            self.with_context(email_ctx).message_post_with_template(
+        if email_to:
+            name_build = self.dest
+            partner_obj = self.env['res.partner']
+            partner_id = partner_obj.find_or_create(email_to)
+            partner = partner_obj.browse(partner_id)
+            if partner not in self.message_partner_ids:
+                self.message_subscribe([partner.id])
+            email_act = self.action_send_email()
+            if email_act and email_act.get('context'):
+                email_ctx = email_act['context']
+                self.with_context(email_ctx).message_post_with_template(
                                                     email_ctx.get(
                                                         'default_template_id'))
-            _logger.info('Sent email to: %s, Build: %s', email_to, name_build)
+                _logger.info('Sent email to: %s, Build: %s', email_to,
+                             name_build)
         return True
 
     @api.multi
