@@ -54,10 +54,11 @@ class RunbotBuild(models.Model):
     docker_container = fields.Char(help='New container name to create')
     docker_image_cache = fields.Char(help='Image name to re-use with cache')
     docker_cache = fields.Boolean(
-        help="Use of docker cache. True: If is a PR and "
+        help="Use of docker image cache. True: If is a PR and "
         "don'thave changes in .travis.yml and image cached is created.")
     branch_closest = fields.Char(help="Branch closest of branch base.")
     is_pull_request = fields.Boolean(help="True is a pull request.")
+    branch_short_name = fields.Char(help='Branch short name e.g. pull/1, 8.0')
 
     def get_docker_image(self, branch_closest=None):
         self.ensure_one()
@@ -115,7 +116,8 @@ class RunbotBuild(models.Model):
             return MAGIC_PID_RUN_NEXT_JOB
         run(['docker', 'rm', '-f', build.docker_container])
         pr_cmd_env = [
-            '-e', 'TRAVIS_PULL_REQUEST=true',
+            '-e', 'TRAVIS_PULL_REQUEST=' +
+            build.branch_short_name.replace('pull/', ''),
             '-e', 'CI_PULL_REQUEST=' + build.branch_id.branch_name,
             # coveralls process CI_PULL_REQUEST if CIRCLE is enabled
             '-e', 'CIRCLECI=1',
@@ -135,7 +137,8 @@ class RunbotBuild(models.Model):
             '-p', '%d:%d' % (build.port + 1, 22),
         ] + pr_cmd_env + cache_cmd_env + [
             '--name=' + build.docker_container, '-t',
-            build.docker_image,
+            build.docker_image_cache
+            if build.docker_cache else build.docker_image,
         ]
         return self.spawn(cmd, lock_path, log_path)
 
@@ -201,6 +204,7 @@ class RunbotBuild(models.Model):
                     build.docker_container = build.get_docker_container()
                     build.branch_closest = build._get_closest_branch_name(
                         build.repo_id.id)[1].split('/')[-1]
+                    build.branch_short_name = branch_short_name
                     if 'refs/pull/' in build.branch_id.name:
                         build.is_pull_request = True
                         # TODO: Validate if has a .travis.yml change.
