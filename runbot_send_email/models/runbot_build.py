@@ -14,6 +14,7 @@ class RunbotBuild(models.Model):
     _name = "runbot.build"
     _inherit = ['runbot.build', 'mail.thread']
 
+    email_follower = fields.Char(compute='_email_follower')
     host_name = fields.Char(compute='_host_name')
     repo_name = fields.Char(compute='_repo_name')
     branch_name = fields.Char(compute='_branch_name')
@@ -27,6 +28,10 @@ class RunbotBuild(models.Model):
     dockerdoc_link = fields.Char(compute='_dockerdoc_link')
     configfile_link = fields.Char(compute='_configfile_link')
     shareissue_link = fields.Char(compute='_shareissue_link')
+
+    @api.multi
+    def _email_follower(self):
+        self.email_follower = self.committer_email
 
     @api.multi
     def _host_name(self):
@@ -147,11 +152,11 @@ class RunbotBuild(models.Model):
     @api.multi
     def send_email(self):
         name_build = self.dest
-        email_to = self.committer_email
+        email_to = self.email_follower
         partner_obj = self.env['res.partner']
         partner_id = partner_obj.find_or_create(email_to)
         partner = partner_obj.browse(partner_id)
-        if partner not in self.message_partner_ids:
+        if email_to and partner not in self.message_partner_ids:
             self.message_subscribe([partner.id])
         email_act = self.action_send_email()
         if email_act and email_act.get('context'):
