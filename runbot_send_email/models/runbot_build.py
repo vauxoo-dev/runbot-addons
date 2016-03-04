@@ -131,13 +131,21 @@ class RunbotBuild(models.Model):
             record.shareissue_link = link
 
     @api.multi
+    def get_email_param(self):
+        for record in self:
+            partner_obj = self.env['res.partner']
+            partner_id = partner_obj.find_or_create(record.email_follower)
+            partner = partner_obj.browse(partner_id)
+            if partner not in record.message_partner_ids:
+                record.message_subscribe([partner.id])
+
+    @api.multi
     def action_send_email(self):
         self.ensure_one()
         ir_model_data = self.env['ir.model.data']
         try:
             template_id = ir_model_data.get_object_reference(
-                                                        'runbot_send_email',
-                                                        'runbot_send_notif')[1]
+                'runbot_send_email', 'runbot_send_notif')[1]
         except ValueError:
             template_id = False
         try:
@@ -168,24 +176,18 @@ class RunbotBuild(models.Model):
     @api.multi
     def send_email(self):
         for record in self:
-            email_to = record.email_follower
-            name_build = record.dest
-            partner_obj = self.env['res.partner']
-            partner_id = partner_obj.find_or_create(email_to)
-            partner = partner_obj.browse(partner_id)
-            if partner not in record.message_partner_ids:
-                record.message_subscribe([partner.id])
             email_act = record.action_send_email()
             if email_act and email_act.get('context'):
                 email_ctx = email_act['context']
                 record.with_context(email_ctx).message_post_with_template(
-                                                    email_ctx.get(
-                                                        'default_template_id'))
-                _logger.info('Sent email to: %s, Build: %s', email_to,
-                             name_build)
+                    email_ctx.get('default_template_id'))
+                _logger.info('Sent email to: %s, Build: %s',
+                             record.email_follower, record.dest)
         return True
 
     @api.multi
     def github_status(self):
-        super(RunbotBuild, self).github_status()
-        self.send_email()
+        for record in self:
+            super(RunbotBuild, record).github_status()
+            record.get_email_param()
+            record.send_email()
