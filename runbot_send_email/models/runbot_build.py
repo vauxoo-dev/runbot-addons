@@ -187,7 +187,7 @@ class RunbotBuild(models.Model):
 
     @api.multi
     def github_status(self):
+        super(RunbotBuild, self).github_status()
         for record in self:
-            super(RunbotBuild, record).github_status()
             record.get_email_param()
             record.send_email()
