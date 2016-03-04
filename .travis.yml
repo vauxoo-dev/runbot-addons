@@ -3,7 +3,13 @@ language: python
 python:
   - "2.7"
 
-cache: pip
+sudo: required  # Required for docker
+services:
+  - docker
+cache:
+  apt: true
+  directories:
+    - $HOME/.cache/pip
 
 addons:
   apt:
@@ -51,6 +57,8 @@ install:
   # odoo-extra has a bunch of v9 modules which aren't compatible, remove them
   - (cd ~/odoo-extra; rm -rf $(ls | grep -v runbot$))
   - if [ "${TESTS}" == "1"  ]; then travis_wait docker pull vauxoo/odoo-80-image-shippable-auto; fi
+  - pip install -r requirements.txt
+  - if [ "${TESTS}" == "1"  ]; then ${TRAVIS_BUILD_DIR}/.travis_requirements.sh; fi
 
 script:
   - travis_wait travis_run_tests
