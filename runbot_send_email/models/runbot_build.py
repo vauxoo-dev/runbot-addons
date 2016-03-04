@@ -31,88 +31,104 @@ class RunbotBuild(models.Model):
 
     @api.multi
     def _email_follower(self):
-        self.email_follower = self.committer_email
+        for record in self:
+            record.email_follower = record.committer_email
 
     @api.multi
     def _host_name(self):
-        base_url = self.env['ir.config_parameter'].get_param('web.base.url')
-        self.host_name = urlparse(base_url).hostname
+        ir_config = self.env['ir.config_parameter']
+        for record in self:
+            base_url = ir_config.get_param('web.base.url')
+            record.host_name = urlparse(base_url).hostname
 
     @api.multi
     def _repo_name(self):
-        descrip = self.repo_id.name.replace('.git', '').replace(
-            'https://github.com/', '').replace('/', ' / ')
-        self.repo_name = descrip
+        for record in self:
+            descrip = record.repo_id.name.replace('.git', '').replace(
+                'https://github.com/', '').replace('/', ' / ')
+            record.repo_name = descrip
 
     @api.multi
     def _branch_name(self):
-        if self.branch_id.name.find("pull") >= 0:
-            branch = _(u"PR #{}").format(self.branch_id.branch_name)
-        else:
-            branch = self.branch_id.branch_name
-        self.branch_name = branch
+        for record in self:
+            if record.branch_id.name.find("pull") >= 0:
+                branch = _(u"PR #{}").format(record.branch_id.branch_name)
+            else:
+                branch = record.branch_id.branch_name
+            record.branch_name = branch
 
     @api.multi
     def _subject_email(self):
-        status = 'Broken'
-        if self.state == 'testing':
-            status = 'Testing'
-        elif self.state in ('running', 'done'):
-            if self.result == 'ok':
-                status = 'Fixed'
+        for record in self:
+            status = 'Broken'
+            if record.state == 'testing':
+                status = 'Testing'
+            elif record.state in ('running', 'done'):
+                if record.result == 'ok':
+                    status = 'Fixed'
 
-        self.subject_email = _(u"[runbot] {}: {} - {} - {}")\
-            .format(status, self.dest, self.branch_name, self.repo_name)
+            record.subject_email = _(u"[runbot] {}: {} - {} - {}")\
+                .format(status, record.dest, record.branch_name,
+                        record.repo_name)
 
     @api.multi
     def _webaccess_link(self):
-        html = "http://{}/?db={}-all"
-        link = _(html).format(self.domain, self.dest)
-        self.webaccess_link = link
+        for record in self:
+            html = "http://{}/?db={}-all"
+            link = _(html).format(record.domain, record.dest)
+            record.webaccess_link = link
 
     @api.multi
     def _logplainbase_link(self):
-        html = "http://{}/runbot/static/build/{}/logs/job_10_test_base.txt"
-        link = _(html).format(self.host, self.dest)
-        self.logplainbase_link = link
+        for record in self:
+            html = "http://{}/runbot/static/build/{}/logs/job_10_test_base.txt"
+            link = _(html).format(record.host, record.dest)
+            record.logplainbase_link = link
 
     @api.multi
     def _logplainall_link(self):
-        html = "http://{}/runbot/static/build/{}/logs/job_20_test_all.txt"
-        link = _(html).format(self.host, self.dest)
-        self.logplainall_link = link
+        for record in self:
+            html = "http://{}/runbot/static/build/{}/logs/job_20_test_all.txt"
+            link = _(html).format(record.host, record.dest)
+            record.logplainall_link = link
 
     @api.multi
     def _log_link(self):
-        html = "/runbot/build/{}"
-        link = _(html).format(self.id)
-        self.log_link = link
+        for record in self:
+            html = "/runbot/build/{}"
+            link = _(html).format(record.id)
+            record.log_link = link
 
     @api.multi
     def _ssh_link(self):
-        html = "ssh -p {} root@{}"
-        link = _(html).format(self.port+1, self.host_name)
-        self.ssh_link = link
+        for record in self:
+            html = "ssh -p {} root@{}"
+            link = _(html).format(record.port+1, record.host_name)
+            record.ssh_link = link
 
     @api.multi
     def _doc_link(self):
-        link = '/runbot_doc/static/index.html'
-        self.doc_link = link
+        for record in self:
+            link = '/runbot_doc/static/index.html'
+            record.doc_link = link
 
     @api.multi
     def _dockerdoc_link(self):
-        link = 'https://github.com/Vauxoo/travis2docker/wiki'
-        self.dockerdoc_link = link
+        for record in self:
+            link = 'https://github.com/Vauxoo/travis2docker/wiki'
+            record.dockerdoc_link = link
 
     @api.multi
     def _configfile_link(self):
-        link = 'https://github.com/Vauxoo/travis2docker/wiki'
-        self.configfile_link = link
+        for record in self:
+            link = 'https://github.com/Vauxoo/travis2docker/wiki'
+            record.configfile_link = link
 
     @api.multi
     def _shareissue_link(self):
-        link = 'https://github.com/Vauxoo/runbot-addons/issues/new'
-        self.shareissue_link = link
+        for record in self:
+            link = 'https://github.com/Vauxoo/runbot-addons/issues/new'
+            record.shareissue_link = link
 
     @api.multi
     def action_send_email(self):
@@ -151,18 +167,18 @@ class RunbotBuild(models.Model):
 
     @api.multi
     def send_email(self):
-        email_to = self.email_follower
-        if email_to:
-            name_build = self.dest
+        for record in self:
+            email_to = record.email_follower
+            name_build = record.dest
             partner_obj = self.env['res.partner']
             partner_id = partner_obj.find_or_create(email_to)
             partner = partner_obj.browse(partner_id)
-            if partner not in self.message_partner_ids:
-                self.message_subscribe([partner.id])
-            email_act = self.action_send_email()
+            if partner not in record.message_partner_ids:
+                record.message_subscribe([partner.id])
+            email_act = record.action_send_email()
             if email_act and email_act.get('context'):
                 email_ctx = email_act['context']
-                self.with_context(email_ctx).message_post_with_template(
+                record.with_context(email_ctx).message_post_with_template(
                                                     email_ctx.get(
                                                         'default_template_id'))
                 _logger.info('Sent email to: %s, Build: %s', email_to,
