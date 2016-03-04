@@ -77,7 +77,7 @@ class RunbotBuild(models.Model):
 
     def create_image_cache(self):
         for build in self:
-            if not build.is_pull_request:
+            if not build.is_pull_request and build.result in ['ok', 'warn']:
                 image_cached = build.get_docker_image(build.branch_closest)
                 cmd = [
                     'docker', 'commit', '-m', 'runbot_cache',
@@ -200,7 +200,6 @@ class RunbotBuild(models.Model):
                 if ' TESTS=1' in df_content or ' TESTS="1"' in df_content or \
                         " TESTS='1'" in df_content:
                     build.dockerfile_path = path_script
-                    # cmd = ['sed', '-ie', '"\\$aVOLUME /var/lib/postgresql"', path_script]
                     open(os.path.join(path_script, "Dockerfile"), "w").write(
                         df_content + '\n' + 'VOLUME /var/lib/postgresql')
                     build.docker_image = build.get_docker_image()
