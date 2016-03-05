@@ -133,6 +133,7 @@ class RunbotBuild(models.Model):
             '-e', 'RUNBOT=1',
             '-e', 'UNBUFFER=1',
             '-e', 'START_SSH=1',
+            '-e', 'DB_BACKUP=1',
             '-p', '%d:%d' % (build.port, 8069),
             '-p', '%d:%d' % (build.port + 1, 22),
         ] + pr_cmd_env + cache_cmd_env + [
