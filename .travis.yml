@@ -45,7 +45,6 @@ install:
   - pip install docker-py
   - pip install --upgrade --pre travis2docker
   - travis_install_nightly
-  - git clone --depth=1 https://github.com/odoo/odoo-extra ~/odoo-extra
   - find ${HOME} -name runbot.py -exec sed -i  '/from matplotlib.font_manager import FontProperties/d' {} \;
   - find ${HOME} -name runbot.py -exec sed -i  '/from matplotlib.textpath import TextToPath/d' {} \;
   - find ${HOME} -name __openerp__.py -exec sed -i  '/'matplotlib'/d' {} \;
