@@ -211,17 +211,16 @@ class RunbotBuild(models.Model):
                     build.branch_short_name = branch_short_name
                     if 'refs/pull/' in build.branch_id.name:
                         build.is_pull_request = True
-                        # import pdb;pdb.set_trace()
                         is_changed_travis_yml = build.repo_id.git([
                             'diff', '--name-only',
                             build.branch_closest + '..' + build.name,
                             '--', '.travis.yml'])
-                        # TODO: Validate if cached image don't exists.
                         build.docker_image_cache = build.get_docker_image(
-                            build.branch_closest) \
-                            if build.docker_cache else False
-                        run(['docker', 'images', ])
-                        exists_image_cached = True
+                            build.branch_closest)
+                        cmd = [
+                            "docker", "images", "-q", build.docker_image_cache]
+                        exists_image_cached = build.docker_image_cache and \
+                            run(cmd) or False
                         # TODO: Add a field in branch to avoid use cache
                         if is_changed_travis_yml:
                             build.docker_cache = False
