@@ -5,6 +5,7 @@
 
 import logging
 import os
+import subprocess
 import sys
 import time
 import traceback
@@ -220,7 +221,7 @@ class RunbotBuild(models.Model):
                         cmd = [
                             "docker", "images", "-q", build.docker_image_cache]
                         exists_image_cached = build.docker_image_cache and \
-                            run(cmd) or False
+                            subprocess.check_output(cmd) or False
                         # TODO: Add a field in branch to avoid use cache
                         if is_changed_travis_yml:
                             build.docker_cache = False
