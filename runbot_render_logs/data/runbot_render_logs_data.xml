@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<openerp>
+    <data noupdate="1">
+        <record id="runbot_render_logs_image_name" model="ir.config_parameter">
+            <field name="key">logs.image_name</field>
+            <field name="value">quay.io/vauxoo/logio</field>
+        </record>
+        <record id="runbot_render_logs_server_port" model="ir.config_parameter">
+            <field name="key">logs.server_port</field>
+            <field name="value">28777</field>
+        </record>
+        <record id="runbot_render_logs_harvester_port" model="ir.config_parameter">
+            <field name="key">logs.harvester_port</field>
+            <field name="value">28778</field>
+        </record>
+        <record id="runbot_render_logs_user" model="ir.config_parameter">
+            <field name="key">logs.user</field>
+            <field name="value">user</field>
+        </record>
+        <record id="runbot_render_logs_pass" model="ir.config_parameter">
+            <field name="key">logs.pass</field>
+            <field name="value">pass</field>
+        </record>
+    </data>
+</openerp>

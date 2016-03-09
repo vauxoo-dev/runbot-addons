@@ -1,0 +1,9 @@
+<openerp>
+  <data>
+    <template id="livelog" inherit_id="runbot.build_button">
+        <xpath expr="//li[@class='divider']" position="after">
+            <li t-if="bu['state'] in ['testing','running']"><a t-attf-href="/logs/{{bu['id']}}">Live Logs <i class="fa fa-indent"></i></a></li>
+        </xpath>
+    </template>
+  </data>
+</openerp>

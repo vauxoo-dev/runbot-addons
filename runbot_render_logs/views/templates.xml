@@ -1,0 +1,14 @@
+<openerp>
+    <data>
+        <template id="nginx_logs" inherit_id="runbot.nginx_config">
+            <xpath expr='//t[@t-foreach="builds"]' position='inside'>
+            <t t-set="logs_port" t-value="build.port + 3"/>
+    server {
+        listen 8080;
+        server_name ~^logs.<t t-esc="build.dest"/>[-.].*$;
+        location / { proxy_pass http://127.0.0.1:<t t-esc="logs_port"/>;  }
+    }
+            </xpath>
+        </template>
+    </data>
+</openerp>
