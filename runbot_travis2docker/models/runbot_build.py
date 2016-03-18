@@ -231,7 +231,8 @@ class RunbotBuild(models.Model):
                                 # Don't exists image
                                 build.docker_cache = False
                             else:
-                                build.docker_cache = build.repo_id.use_docker_cache
+                                build.docker_cache = build.repo_id.\
+                                    use_docker_cache
 
                     if build.id in to_be_skipped_ids:
                         to_be_skipped_ids.remove(build.id)
