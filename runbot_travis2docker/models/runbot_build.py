@@ -212,22 +212,26 @@ class RunbotBuild(models.Model):
                     build.branch_short_name = branch_short_name
                     if 'refs/pull/' in build.branch_id.name:
                         build.is_pull_request = True
-                        is_changed_travis_yml = build.repo_id.git([
-                            'diff', '--name-only',
-                            build.branch_closest + '..' + build.name,
-                            '--', '.travis.yml'])
-                        build.docker_image_cache = build.get_docker_image(
-                            build.branch_closest)
-                        cmd = [
-                            "docker", "images", "-q", build.docker_image_cache]
-                        exists_image_cached = build.docker_image_cache and \
-                            subprocess.check_output(cmd) or False
-                        if is_changed_travis_yml:
-                            build.docker_cache = False
-                        elif not exists_image_cached:
-                            build.docker_cache = False
-                        else:
-                            build.docker_cache = build.repo_id.use_docker_cache
+                        if build.repo_id.use_docker_cache:
+                            is_changed_travis_yml = build.repo_id.git([
+                                'diff', '--name-only',
+                                build.branch_closest + '..' + build.name,
+                                '--', '.travis.yml'])
+                            build.docker_image_cache = build.get_docker_image(
+                                build.branch_closest)
+                            cmd = [
+                                "docker", "images", "-q",
+                                build.docker_image_cache]
+                            # TODO: Build the branch stable image in all host
+                            dkr_img_res = subprocess.check_output(cmd).\
+                                strip(' \r\n')
+                            if is_changed_travis_yml:
+                                build.docker_cache = False
+                            elif not dkr_img_res:
+                                # Don't exists image
+                                build.docker_cache = False
+                            else:
+                                build.docker_cache = build.repo_id.use_docker_cache
 
                     if build.id in to_be_skipped_ids:
                         to_be_skipped_ids.remove(build.id)
