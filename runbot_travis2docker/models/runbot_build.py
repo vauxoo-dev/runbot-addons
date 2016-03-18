@@ -222,13 +222,12 @@ class RunbotBuild(models.Model):
                             "docker", "images", "-q", build.docker_image_cache]
                         exists_image_cached = build.docker_image_cache and \
                             subprocess.check_output(cmd) or False
-                        # TODO: Add a field in branch to avoid use cache
                         if is_changed_travis_yml:
                             build.docker_cache = False
                         elif not exists_image_cached:
                             build.docker_cache = False
                         else:
-                            build.docker_cache = True
+                            build.docker_cache = build.repo_id.use_docker_cache
 
                     if build.id in to_be_skipped_ids:
                         to_be_skipped_ids.remove(build.id)
