@@ -66,8 +66,11 @@ class RunbotBuild(models.Model):
         build = self
         git_obj = GitRun(build.repo_id.name, '')
         branch = branch_closest or build.name[:7]
-        image_name = git_obj.owner + '-' + git_obj.repo + ':' + \
-            branch + '_' + os.path.basename(build.dockerfile_path)
+        registry_host = build.repo_id.docker_registry_server + '/' \
+            if build.repo_id.docker_registry_server else ""
+        image_name = registry_host + \
+            git_obj.owner + '-' + git_obj.repo + ':' + branch + \
+            '_' + os.path.basename(build.dockerfile_path)
         if branch_closest:
             image_name += '_cached'
         return image_name.lower()
@@ -84,8 +87,12 @@ class RunbotBuild(models.Model):
                     'docker', 'commit', '-m', 'runbot_cache',
                     build.docker_container, image_cached,
                 ]
-                _logger.info('Generating image cache' + ' '.join(cmd))
+                _logger.info('Generating image cache: ' + ' '.join(cmd))
                 run(cmd)
+                if build.docker_registry_server:
+                    cmd = ['docker', 'push', image_cached]
+                    _logger.info('Pushing image: ' + ' '.join(cmd))
+                    run(cmd)
 
     def job_10_test_base(self, cr, uid, build, lock_path, log_path):
         'Build docker image'
@@ -219,6 +226,12 @@ class RunbotBuild(models.Model):
                                 '--', '.travis.yml'])
                             build.docker_image_cache = build.get_docker_image(
                                 build.branch_closest)
+                            if build.docker_registry_server:
+                                cmd = ["docker", "pull",
+                                       build.docker_image_cache]
+                                _logger.info("Pulling image cache: ",
+                                             ' '.join(cmd))
+                                run(cmd)
                             cmd = [
                                 "docker", "images", "-q",
                                 build.docker_image_cache]
