@@ -226,7 +226,7 @@ class RunbotBuild(models.Model):
                                 '--', '.travis.yml'])
                             build.docker_image_cache = build.get_docker_image(
                                 build.branch_closest)
-                            if build.docker_registry_server:
+                            if build.repo_id.docker_registry_server:
                                 cmd = ["docker", "pull",
                                        build.docker_image_cache]
                                 _logger.info("Pulling image cache: ",
