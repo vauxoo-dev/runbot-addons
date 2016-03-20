@@ -89,7 +89,7 @@ class RunbotBuild(models.Model):
                 ]
                 _logger.info('Generating image cache: ' + ' '.join(cmd))
                 run(cmd)
-                if build.docker_registry_server:
+                if build.repo_id.docker_registry_server:
                     cmd = ['docker', 'push', image_cached]
                     _logger.info('Pushing image: ' + ' '.join(cmd))
                     run(cmd)
