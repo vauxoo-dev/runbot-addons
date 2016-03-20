@@ -3,7 +3,7 @@
 # Coding by Moises Lopez <moylop260@vauxoo.com>
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl.html).
 
-from openerp import api, fields, models
+# from openerp import api, fields, models
 
 
 # class RunbotBranch(models.Model):
@@ -11,8 +11,9 @@ from openerp import api, fields, models
 
 #     # pr_ok = fields.Boolean('Is pull request?',
 #     #                        compute='_compute_git_data', store=True)
-#     # branch_base_id = fields.Many2one('runbot.branch', string='Branch Base',
-#     #                                  compute='_compute_git_data', store=True)
+#     # branch_base_id = fields.Many2one(
+#           'runbot.branch', string='Branch Base',
+#     #     compute='_compute_git_data', store=True)
 
 #     @api.depends('name')
 #     def _compute_git_data(self):
