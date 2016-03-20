@@ -8,12 +8,16 @@ This app allows you to generate runbot builds based on docker.
 Use .travis.yml file of your git repository to generate a Dockerfile after that
 start to build a image, run a container to test and re-run the same container with instance alive.
 
-Requirements:
--------------
+Installation
+============
 
-- Install `docker <http://www.docker.com>`_ (Version >= 1.8)
-- Install `travis2docker <https://github.com/vauxoo/travis2docker>`_
-- Use .travis.yml in all your repositories with maintainer-quality-tools with support for runbot.
+To install this module, you need to:
+
+1. Install `docker <http://www.docker.com>`_ (Version >= 1.8)
+2. Install `travis2docker <https://github.com/vauxoo/travis2docker>`_
+3. Use .travis.yml in all your repositories with maintainer-quality-tools with support for runbot.
+
+Example of a `installation from scratch <https://gist.github.com/moylop260/c1d2fe1ccc9c009e6d8d>`_
 
 Contributors
 ------------

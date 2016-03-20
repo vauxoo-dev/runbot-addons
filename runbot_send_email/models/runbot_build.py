@@ -3,6 +3,7 @@
 #   Coded by: lescobar@vauxoo.com
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl.html).
 import logging
+import re
 from urlparse import urlparse
 
 from openerp import api, fields, models, _
@@ -14,8 +15,14 @@ class RunbotBuild(models.Model):
     _name = "runbot.build"
     _inherit = ['runbot.build', 'mail.thread']
 
+    repo_link = fields.Char()
+    pr_link = fields.Char()
+    commit_link = fields.Char()
+    repo_host = fields.Char()
+    repo_owner = fields.Char()
+    repo_project = fields.Char()
+    status_build = fields.Char(compute='_status_build')
     host_name = fields.Char(compute='_host_name')
-    repo_name = fields.Char(compute='_repo_name')
     branch_name = fields.Char(compute='_branch_name')
     subject_email = fields.Char(compute='_subject_email')
     webaccess_link = fields.Char(compute='_webaccess_link')
@@ -29,87 +36,124 @@ class RunbotBuild(models.Model):
     shareissue_link = fields.Char(compute='_shareissue_link')
 
     @api.multi
-    def _host_name(self):
-        base_url = self.env['ir.config_parameter'].get_param('web.base.url')
-        self.host_name = urlparse(base_url).hostname
+    def get_github_links(self):
+        repo_git_regex = r"((git@|https://)([\w\.@]+)(/|:))" + \
+            r"([~\w,\-,\_]+)/" + r"([\w,\-,\_]+)(.git){0,1}((/){0,1})"
+        for rec in self:
+            rec.repo_host, rec.repo_owner, rec.repo_project = '', '', ''
+
+            match_object = re.search(repo_git_regex, rec.repo_id.name)
+            if match_object:
+                rec.repo_host = match_object.group(3)
+                rec.repo_owner = match_object.group(5)
+                rec.repo_project = match_object.group(6)
+            rec.repo_link = "https://" + rec.repo_host + '/' + rec.repo_owner \
+                + '/' + rec.repo_project
+            rec.pr_link = rec.repo_link + rec.branch_id.name.replace(
+                'refs/heads', '/tree').replace('refs', '')
+            rec.commit_link = rec.repo_link + '/commit/' + rec.name[:8]
 
     @api.multi
-    def _repo_name(self):
-        descrip = self.repo_id.name.replace('.git', '').replace(
-                                'https://github.com/', '').replace('/', ' / ')
-        self.repo_name = descrip
+    def _host_name(self):
+        base_url = self.env['ir.config_parameter'].get_param('web.base.url')
+        for record in self:
+            record.host_name = urlparse(base_url).hostname
 
     @api.multi
     def _branch_name(self):
-        if self.branch_id.name.find("pull") >= 0:
-            branch = _(u"PR #{}").format(self.branch_id.branch_name)
-        else:
-            branch = self.branch_id.branch_name
-        self.branch_name = branch
+        for record in self:
+            if 'pull' in record.branch_id.name:
+                branch = _(u"PR #{}").format(record.branch_id.branch_name)
+            else:
+                branch = record.branch_id.branch_name
+            record.branch_name = branch
+
+    @api.multi
+    def _status_build(self):
+        for record in self:
+            status = 'Broken'
+            if record.state == 'testing':
+                status = 'Testing'
+            elif record.state in ('running', 'done'):
+                if record.result == 'ok':
+                    status = 'Fixed'
+            record.status_build = status
 
     @api.multi
     def _subject_email(self):
-        status = 'Broken'
-        if self.state == 'testing':
-            status = 'Testing'
-        elif self.state in ('running', 'done'):
-            if self.result == 'ok':
-                status = 'Fixed'
+        for record in self:
+            pr_reg = "(\\/pull\\/)"
+            match_pr = re.search(pr_reg, record.branch_id.name)
 
-        self.subject_email = _(u"[runbot] {}: {} - {} - {}").format(status,
-                                                            self.dest,
-                                                            self.branch_name,
-                                                            self.repo_name)
+            if match_pr:
+                subject_temp = _(u"[runbot] {}/{}#{}")\
+                    .format(record.repo_owner, record.repo_project,
+                            record.branch_id.branch_name)
+            else:
+                subject_temp = _(u"[runbot] {}/{}#{} - {}")\
+                    .format(record.repo_owner, record.repo_project,
+                            record.branch_id.branch_name, record.name[:8])
+
+            record.subject_email = subject_temp
 
     @api.multi
     def _webaccess_link(self):
-        html = "http://{}/?db={}-all"
-        link = _(html).format(self.domain, self.dest)
-        self.webaccess_link = link
+        for record in self:
+            html = "http://{}/?db={}-all"
+            link = _(html).format(record.domain, record.dest)
+            record.webaccess_link = link
 
     @api.multi
     def _logplainbase_link(self):
-        html = "http://{}/runbot/static/build/{}/logs/job_10_test_base.txt"
-        link = _(html).format(self.host, self.dest)
-        self.logplainbase_link = link
+        for record in self:
+            html = "/runbot/static/build/{}/logs/job_10_test_base.txt"
+            link = _(html).format(record.dest)
+            record.logplainbase_link = link
 
     @api.multi
     def _logplainall_link(self):
-        html = "http://{}/runbot/static/build/{}/logs/job_20_test_all.txt"
-        link = _(html).format(self.host, self.dest)
-        self.logplainall_link = link
+        for record in self:
+            html = "/runbot/static/build/{}/logs/job_20_test_all.txt"
+            link = _(html).format(record.dest)
+            record.logplainall_link = link
 
     @api.multi
     def _log_link(self):
-        html = "/runbot/build/{}"
-        link = _(html).format(self.id)
-        self.log_link = link
+        for record in self:
+            html = "/runbot/build/{}"
+            link = _(html).format(record.id)
+            record.log_link = link
 
     @api.multi
     def _ssh_link(self):
-        html = "ssh -p {} root@{}"
-        link = _(html).format(self.port+1, self.host_name)
-        self.ssh_link = link
+        for record in self:
+            html = "ssh -p {} root@{}"
+            link = _(html).format(record.port+1, record.host_name)
+            record.ssh_link = link
 
     @api.multi
     def _doc_link(self):
-        link = '/runbot_doc/static/index.html'
-        self.doc_link = link
+        for record in self:
+            link = '/runbot_doc/static/index.html'
+            record.doc_link = link
 
     @api.multi
     def _dockerdoc_link(self):
-        link = 'https://github.com/Vauxoo/travis2docker/wiki'
-        self.dockerdoc_link = link
+        for record in self:
+            link = 'https://github.com/Vauxoo/travis2docker/wiki'
+            record.dockerdoc_link = link
 
     @api.multi
     def _configfile_link(self):
-        link = 'https://github.com/Vauxoo/travis2docker/wiki'
-        self.configfile_link = link
+        for record in self:
+            link = 'https://github.com/Vauxoo/travis2docker/wiki'
+            record.configfile_link = link
 
     @api.multi
     def _shareissue_link(self):
-        link = 'https://github.com/Vauxoo/runbot-addons/issues/new'
-        self.shareissue_link = link
+        for record in self:
+            link = 'https://github.com/Vauxoo/runbot-addons/issues/new'
+            record.shareissue_link = link
 
     @api.multi
     def action_send_email(self):
@@ -117,13 +161,12 @@ class RunbotBuild(models.Model):
         ir_model_data = self.env['ir.model.data']
         try:
             template_id = ir_model_data.get_object_reference(
-                                                        'runbot_send_email',
-                                                        'runbot_send_notif')[1]
+                'runbot_send_email', 'runbot_send_notif')[1]
         except ValueError:
             template_id = False
         try:
-            compose_form_id = ir_model_data.get_object_reference('mail',
-                                    'email_compose_message_wizard_form')[1]
+            compose_form_id = ir_model_data.get_object_reference(
+                'mail', 'email_compose_message_wizard_form')[1]
         except ValueError:
             compose_form_id = False
         ctx = dict()
@@ -148,23 +191,25 @@ class RunbotBuild(models.Model):
 
     @api.multi
     def send_email(self):
-        name_build = self.dest
-        email_to = self.committer_email
         partner_obj = self.env['res.partner']
-        partner_id = partner_obj.find_or_create(email_to)
-        partner = partner_obj.browse(partner_id)
-        if partner not in self.message_partner_ids:
-            self.message_subscribe([partner.id])
-        email_act = self.action_send_email()
-        if email_act and email_act.get('context'):
-            email_ctx = email_act['context']
-            self.with_context(email_ctx).message_post_with_template(
-                                                    email_ctx.get(
-                                                        'default_template_id'))
-            _logger.info('Sent email to: %s, Build: %s', email_to, name_build)
-        return True
+        for record in self:
+            name_build = record.dest
+            email_to = record.committer_email
+            partner_id = partner_obj.find_or_create(email_to)
+            partner = partner_obj.browse(partner_id)
+            if partner not in record.message_partner_ids:
+                record.message_subscribe([partner.id])
+            email_act = record.action_send_email()
+            if email_act and email_act.get('context'):
+                email_ctx = email_act['context']
+                record.with_context(email_ctx).message_post_with_template(
+                    email_ctx.get('default_template_id'))
+                _logger.info('Sent email to: %s, Build: %s', email_to,
+                             name_build)
 
     @api.multi
     def github_status(self):
         super(RunbotBuild, self).github_status()
-        self.send_email()
+        for record in self:
+            record.get_github_links()
+            record.send_email()
