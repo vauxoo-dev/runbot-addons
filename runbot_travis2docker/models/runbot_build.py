@@ -94,6 +94,15 @@ class RunbotBuild(models.Model):
                     _logger.info('Pushing image: ' + ' '.join(cmd))
                     run(cmd)
 
+    def get_docker_build_cmd(self):
+        self.ensure_one()
+        build = self
+        cmd = [
+            'docker', 'build', '--no-cache', '-t', build.docker_image,
+            build.dockerfile_path,
+        ]
+        return cmd
+
     def job_10_test_base(self, cr, uid, build, lock_path, log_path):
         'Build docker image'
         if not build.branch_id.repo_id.is_travis2docker_build:
@@ -104,25 +113,13 @@ class RunbotBuild(models.Model):
             _logger.info('docker build skipping job_10_test_base')
             return MAGIC_PID_RUN_NEXT_JOB
         if not build.docker_cache:
-            cmd = [
-                'docker', 'build',
-                "--no-cache",
-                "-t", build.docker_image,
-                build.dockerfile_path,
-            ]
+            cmd = build.get_docker_build_cmd()
             return self.spawn(cmd, lock_path, log_path)
         return MAGIC_PID_RUN_NEXT_JOB
 
-    def job_20_test_all(self, cr, uid, build, lock_path, log_path):
-        'create docker container'
-        if not build.branch_id.repo_id.is_travis2docker_build:
-            return super(RunbotBuild, self).job_20_test_all(
-                cr, uid, build, lock_path, log_path)
-        if not build.docker_image or not build.dockerfile_path \
-                or build.result == 'skipped':
-            _logger.info('docker build skipping job_20_test_all')
-            return MAGIC_PID_RUN_NEXT_JOB
-        run(['docker', 'rm', '-f', build.docker_container])
+    def get_docker_run_cmd(self):
+        self.ensure_one()
+        build = self
         pr_cmd_env = [
             '-e', 'TRAVIS_PULL_REQUEST=' +
             build.branch_short_name.replace('pull/', ''),
@@ -150,6 +147,19 @@ class RunbotBuild(models.Model):
             build.docker_image_cache
             if build.docker_cache else build.docker_image,
         ]
+        return cmd
+
+    def job_20_test_all(self, cr, uid, build, lock_path, log_path):
+        'create docker container'
+        if not build.branch_id.repo_id.is_travis2docker_build:
+            return super(RunbotBuild, self).job_20_test_all(
+                cr, uid, build, lock_path, log_path)
+        if not build.docker_image or not build.dockerfile_path \
+                or build.result == 'skipped':
+            _logger.info('docker build skipping job_20_test_all')
+            return MAGIC_PID_RUN_NEXT_JOB
+        build.docker_rm_container()
+        cmd = build.get_docker_run_cmd()
         return self.spawn(cmd, lock_path, log_path)
 
     def job_30_run(self, cr, uid, build, lock_path, log_path):
@@ -269,9 +279,17 @@ class RunbotBuild(models.Model):
                          'Skipping builds %s', to_be_skipped_ids)
             self.skip(cr, uid, to_be_skipped_ids, context=context)
 
+    def docker_rm_container(self):
+        for build in self:
+            run(['docker', 'rm', '-f', build.docker_container])
+
+    def docker_rm_image(self):
+        for build in self:
+            run(['docker', 'rmi', '-f', build.docker_image])
+
     @custom_build
     def _local_cleanup(self, cr, uid, ids, context=None):
         for build in self.browse(cr, uid, ids, context=context):
             if build.docker_container:
-                run(['docker', 'rm', '-f', build.docker_container])
-                run(['docker', 'rmi', '-f', build.docker_image])
+                build.docker_rm_container()
+                build.docker_rm_image()

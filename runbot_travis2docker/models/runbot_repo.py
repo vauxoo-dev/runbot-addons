@@ -13,5 +13,6 @@ class RunbotRepo(models.Model):
     use_docker_cache = fields.Boolean()
     docker_registry_server = fields.Char(
         help="Docker registry server to centralize all docker push cache "
-        "images and docker pull cache images. E.g. localhost:5000."
-        "If is empty won't push it")
+        "images and docker pull cache images. E.g. localhost:5000. "
+        "If is empty won't push it. "
+        "Don't Use this feature if you use just one runbot server.")
