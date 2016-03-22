@@ -187,6 +187,45 @@ class RunbotBuild(models.Model):
         cmd = ['docker', 'start', '-i', build.docker_container]
         return self.spawn(cmd, lock_path, log_path)
 
+    def use_build_cache(self):
+        """Check if a build is candidate to use cache.
+            * Change in .travis.yml then don't use cache.
+            * The image base don't exists then don't use cache.
+            * The repo has use_docker_cache==False then don't use cache.
+        """
+
+        self.ensure_one()
+        build = self
+
+        # Check if the repo has use_docker_cache
+        use_cache = build.repo_id.use_docker_cache
+        if not use_cache:
+            return use_cache
+
+        # Check if the build has a change in .travis.yml file
+        is_changed_travis_yml = build.repo_id.git([
+            'diff', '--name-only',
+            build.branch_closest + '..' + build.name,
+            '--', '.travis.yml'])
+        use_cache = not is_changed_travis_yml
+        if not use_cache:
+            return use_cache
+
+        # Check if exists the image
+        if build.repo_id.docker_registry_server:
+            cmd = ["docker", "pull", build.docker_image_cache]
+            _logger.info("Pulling image cache: %s", ' '.join(cmd))
+            run(cmd)
+        cmd = [
+            "docker", "images", "-q",
+            build.docker_image_cache]
+        dkr_img_res = subprocess.check_output(cmd).strip(' \r\n')
+        # TODO: Validate when docker return a not connection error.
+        if not dkr_img_res:
+            # Don't exists image
+            use_cache = False
+        return use_cache
+
     @custom_build
     def checkout(self, cr, uid, ids, context=None):
         """Save travis2docker output"""
@@ -216,37 +255,12 @@ class RunbotBuild(models.Model):
                     build.docker_container = build.get_docker_container()
                     build.branch_closest = build._get_closest_branch_name(
                         build.repo_id.id)[1].split('/')[-1]
+                    build.docker_image_cache = build.get_docker_image(
+                        build.branch_closest)
                     build.branch_short_name = branch_short_name
                     if 'refs/pull/' in build.branch_id.name:
                         build.is_pull_request = True
-                        if build.repo_id.use_docker_cache:
-                            is_changed_travis_yml = build.repo_id.git([
-                                'diff', '--name-only',
-                                build.branch_closest + '..' + build.name,
-                                '--', '.travis.yml'])
-                            build.docker_image_cache = build.get_docker_image(
-                                build.branch_closest)
-                            if build.repo_id.docker_registry_server:
-                                cmd = ["docker", "pull",
-                                       build.docker_image_cache]
-                                _logger.info("Pulling image cache: %s",
-                                             ' '.join(cmd))
-                                run(cmd)
-                            cmd = [
-                                "docker", "images", "-q",
-                                build.docker_image_cache]
-                            # TODO: Build the branch stable image in all host
-                            dkr_img_res = subprocess.check_output(cmd).\
-                                strip(' \r\n')
-                            if is_changed_travis_yml:
-                                build.docker_cache = False
-                            elif not dkr_img_res:
-                                # Don't exists image
-                                build.docker_cache = False
-                            else:
-                                build.docker_cache = build.repo_id.\
-                                    use_docker_cache
-
+                        build.docker_cache = build.use_build_cache()
                     if build.id in to_be_skipped_ids:
                         to_be_skipped_ids.remove(build.id)
                     break
