@@ -35,7 +35,7 @@ class TestRunbotJobs(TransactionCase):
             time.sleep(timeout)
         return build.job
 
-    def test_jobs(self):
+    def test_jobs_branch(self):
         'Create build and run all jobs'
         self.assertEqual(len(self.repo), 1, "Repo not found")
         self.repo.update()
@@ -100,6 +100,32 @@ class TestRunbotJobs(TransactionCase):
             "Docker image don't found in registry.",
         )
 
+        cmd = ['docker', 'rmi', build.docker_image_cache]
+        subprocess.check_output(cmd)
+
+    def test_jobs_pull_request(self):
+        "Check cache jobs in branch of pull request"
+        branch = self.branch_obj.search(self.repo_domain + [
+            ('name', 'like', 'pull')], limit=1)
+
+        self.assertEqual(len(branch), 1, "Branch not found")
+        self.build_obj.search([('branch_id', '=', branch.id)]).unlink()
+
+        self.repo.update()
+        build = self.build_obj.search([
+            ('branch_id', '=', branch.id)], limit=1)
+        self.assertEqual(len(build) == 0, False, "Build not found")
+        self.assertEqual(
+            build.state, u'pending', "State should be pending")
+
+        self.repo.cron()
+        self.assertEqual(
+            build.state, u'testing', "State should be testing")
+        # Use of cache don't build, directly run tests
+        self.assertEqual(
+            build.job, u'job_20_test_all',
+            "Job should be job_20_test_all")
+
     def docker_registry_test(self, build):
         cmd = [
             "curl", "--silent",
@@ -108,10 +134,7 @@ class TestRunbotJobs(TransactionCase):
         ]
         tag_list_output = subprocess.check_output(cmd)
         tag_build = build.docker_image_cache.split(':')[-1]
-        if tag_build in tag_list_output:
-            return True
-        else:
-            return False
+        return tag_build in tag_list_output
 
     def connection_test(self, build):
         username = "admin"
