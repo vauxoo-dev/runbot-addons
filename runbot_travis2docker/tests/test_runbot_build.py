@@ -28,7 +28,12 @@ class TestRunbotJobs(TransactionCase):
 
     def delete_image_cache(self, build):
         cmd = ['docker', 'rmi', '-f', build.docker_image_cache]
-        subprocess.check_output(cmd)
+        res = -1
+        try:
+            res = subprocess.check_output(cmd)
+        except subprocess.CalledProcessError:
+            pass
+        return res
 
     def wait_change_job(self, current_job, build,
                         loops=36, timeout=10):
