@@ -26,6 +26,10 @@ class TestRunbotJobs(TransactionCase):
             ('is_travis2docker_build', '=', True)], limit=1)
         self.repo_domain = [('repo_id', '=', self.repo.id)]
 
+    def delete_image_cache(self, build):
+        cmd = ['docker', 'rmi', build.docker_image_cache]
+        subprocess.check_output(cmd)
+
     def wait_change_job(self, current_job, build,
                         loops=36, timeout=10):
         for _ in range(loops):
@@ -35,7 +39,7 @@ class TestRunbotJobs(TransactionCase):
             time.sleep(timeout)
         return build.job
 
-    def test_jobs_branch(self):
+    def ______test_jobs_branch(self):
         'Create build and run all jobs'
         self.assertEqual(len(self.repo), 1, "Repo not found")
         self.repo.update()
@@ -99,9 +103,7 @@ class TestRunbotJobs(TransactionCase):
             self.docker_registry_test(build),
             "Docker image don't found in registry.",
         )
-
-        cmd = ['docker', 'rmi', build.docker_image_cache]
-        subprocess.check_output(cmd)
+        self.delete_image_cache(build)
 
     def test_jobs_pull_request(self):
         "Check cache jobs in branch of pull request"
@@ -125,6 +127,38 @@ class TestRunbotJobs(TransactionCase):
         self.assertEqual(
             build.job, u'job_20_test_all',
             "Job should be job_20_test_all")
+
+        new_current_job = self.wait_change_job(build.job, build)
+        _logger.info(open(
+            os.path.join(build.path(), "logs",
+                         "job_20_test_all.txt")).read())
+
+        self.assertEqual(
+            new_current_job, u'job_30_run',
+            "Job should be job_30_run")
+        self.assertEqual(
+            build.state, u'running',
+            "Job state should be running")
+
+        time.sleep(360)
+        _logger.info(open(
+            os.path.join(build.path(), "logs",
+                         "job_30_run.txt")).read())
+
+        self.assertEqual(
+            build.state, u'running',
+            "Job state should be running still")
+        user_ids = self.connection_test(build)
+        self.assertEqual(
+            len(user_ids) >= 1, True, "Failed connection test")
+
+        build.kill()
+        self.assertEqual(
+            build.state, u'done', "Job state should be done")
+
+        self.assertEqual(
+            build.result, u'ok', "Job result should be ok")
+        self.delete_image_cache(build)
 
     def docker_registry_test(self, build):
         cmd = [
