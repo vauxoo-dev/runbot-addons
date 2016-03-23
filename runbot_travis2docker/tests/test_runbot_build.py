@@ -27,7 +27,7 @@ class TestRunbotJobs(TransactionCase):
         self.repo_domain = [('repo_id', '=', self.repo.id)]
 
     def delete_image_cache(self, build):
-        cmd = ['docker', 'rmi', build.docker_image_cache]
+        cmd = ['docker', 'rmi', '-f', build.docker_image_cache]
         subprocess.check_output(cmd)
 
     def wait_change_job(self, current_job, build,
@@ -107,6 +107,7 @@ class TestRunbotJobs(TransactionCase):
 
     def test_jobs_pull_request(self):
         "Check cache jobs in branch of pull request"
+        self.repo.update()
         branch = self.branch_obj.search(self.repo_domain + [
             ('name', 'like', 'pull')], limit=1)
 
@@ -117,6 +118,10 @@ class TestRunbotJobs(TransactionCase):
         build = self.build_obj.search([
             ('branch_id', '=', branch.id)], limit=1)
         self.assertEqual(len(build) == 0, False, "Build not found")
+
+        build.checkout()
+        self.delete_image_cache(build)
+
         self.assertEqual(
             build.state, u'pending', "State should be pending")
 
