@@ -39,7 +39,7 @@ class TestRunbotJobs(TransactionCase):
             time.sleep(timeout)
         return build.job
 
-    def ______test_jobs_branch(self):
+    def test_jobs_branch(self):
         'Create build and run all jobs'
         self.assertEqual(len(self.repo), 1, "Repo not found")
         self.repo.update()
