@@ -35,6 +35,15 @@ class TestRunbotJobs(TransactionCase):
             pass
         return res
 
+    def delete_container(self, build):
+        cmd = ['docker', 'rm', '-f', build.get_docker_container()]
+        res = -1
+        try:
+            res = subprocess.check_output(cmd)
+        except subprocess.CalledProcessError:
+            pass
+        return res
+
     def wait_change_job(self, current_job, build,
                         loops=36, timeout=10):
         for _ in range(loops):
@@ -109,6 +118,7 @@ class TestRunbotJobs(TransactionCase):
             "Docker image don't found in registry.",
         )
         self.delete_image_cache(build)
+        self.delete_container(build)
 
     def test_jobs_pull_request(self):
         "Check cache jobs in branch of pull request"
@@ -169,6 +179,7 @@ class TestRunbotJobs(TransactionCase):
         self.assertEqual(
             build.result, u'ok', "Job result should be ok")
         self.delete_image_cache(build)
+        self.delete_container(build)
 
     def docker_registry_test(self, build):
         cmd = [
