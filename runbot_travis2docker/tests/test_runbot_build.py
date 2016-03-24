@@ -49,11 +49,13 @@ class TestRunbotJobs(TransactionCase):
     def wait_change_job(self, current_job, build,
                         loops=36, timeout=10):
         _logger.info("Waiting change of job")
-        for _ in range(loops):
+        for count in range(loops):
             self.repo.cron()
             if build.job != current_job:
                 break
             time.sleep(timeout)
+            if divmod(count, 5)[1] == 0:
+                _logger.info("...")
         return build.job
 
     def test_jobs_branch(self):
