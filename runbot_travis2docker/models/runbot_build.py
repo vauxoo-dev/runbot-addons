@@ -96,7 +96,12 @@ class RunbotBuild(models.Model):
                         run(cmd)
                     except OSError:
                         # run make a error interrupted system call in travis
-                        subprocess.check_output(cmd)
+                        try:
+                            subprocess.check_output(cmd)
+                        except subprocess.CalledProcessError as scpe:
+                            msg = scpe.output
+                            _logger.error(msg)
+                            raise BaseException(msg)
 
     def get_docker_build_cmd(self):
         self.ensure_one()
