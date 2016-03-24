@@ -64,10 +64,14 @@ class TestRunbotJobs(TransactionCase):
 
     def test_10_jobs_branch(self):
         "Create build and run all jobs in branch case (not pull request)"
+        global _logger  # pylint: disable=global-statement
+        _logger = logging.getLogger(__name__ + '.def test_10_jobs_branch')
         self.run_jobs('refs/heads/fast-travis')
 
     def test_20_jobs_pr(self):
         "Create build and run all jobs in pull request"
+        global _logger  # pylint: disable=global-statement
+        _logger = logging.getLogger(__name__ + '.def test_20_jobs_pr')
         self.run_jobs('refs/pull/1')
 
     def run_jobs(self, branch):
