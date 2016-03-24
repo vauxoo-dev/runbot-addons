@@ -149,7 +149,7 @@ class TestRunbotJobs(TransactionCase):
             self.delete_image_cache(build)
 
     def exists_container(self, build):
-        cmd = ['docker', 'ps']
+        cmd = ['docker', 'ps', '-a']
         containers = subprocess.check_output(cmd)
         if build.get_docker_container() in containers:
             return True
