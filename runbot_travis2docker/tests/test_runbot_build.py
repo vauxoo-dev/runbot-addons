@@ -54,7 +54,7 @@ class TestRunbotJobs(TransactionCase):
             if build.job != current_job:
                 break
             time.sleep(timeout)
-            if divmod(count, 5)[1] == 0:
+            if divmod(count + 1, 5)[1] == 0:
                 _logger.info("...")
         return build.job
 
