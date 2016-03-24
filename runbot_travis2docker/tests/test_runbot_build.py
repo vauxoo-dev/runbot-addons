@@ -51,7 +51,7 @@ class TestRunbotJobs(TransactionCase):
     @openerp.tools.mute_logger('openerp.addons.runbot.runbot')
     def wait_change_job(self, current_job, build,
                         loops=40, timeout=20):
-        _logger.info("Waiting change of job")
+        _logger.info("Waiting change of current job: %s", current_job)
         for count in range(loops):
             self.repo.cron()
             if build.job != current_job:
@@ -156,7 +156,6 @@ class TestRunbotJobs(TransactionCase):
         build.checkout()
         self.delete_build_path(build)
         self.delete_image_cache(build)
-        self.delete_container(build)
 
         self.assertEqual(
             build.state, u'pending', "State should be pending")

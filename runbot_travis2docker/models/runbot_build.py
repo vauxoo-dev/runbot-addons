@@ -98,7 +98,7 @@ class RunbotBuild(models.Model):
         self.ensure_one()
         build = self
         cmd = [
-            'docker', 'build', '--no-cache', '-t', build.docker_image,
+            'docker', 'build', '-t', build.docker_image,
             build.dockerfile_path,
         ]
         return cmd
@@ -292,4 +292,4 @@ class RunbotBuild(models.Model):
         for build in self.browse(cr, uid, ids, context=context):
             if build.docker_container:
                 build.docker_rm_container()
-                build.docker_rm_image()
+                # build.docker_rm_image()
