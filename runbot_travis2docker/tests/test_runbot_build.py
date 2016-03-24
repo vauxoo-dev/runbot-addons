@@ -9,6 +9,7 @@ import subprocess
 import time
 import xmlrpclib
 
+import openerp
 from openerp.tests.common import TransactionCase
 
 
@@ -44,8 +45,10 @@ class TestRunbotJobs(TransactionCase):
             pass
         return res
 
+    @openerp.tools.mute_logger('openerp.addons.runbot.runbot')
     def wait_change_job(self, current_job, build,
                         loops=36, timeout=10):
+        _logger.info("Waiting change of job")
         for _ in range(loops):
             self.repo.cron()
             if build.job != current_job:
@@ -54,7 +57,7 @@ class TestRunbotJobs(TransactionCase):
         return build.job
 
     def test_jobs_branch(self):
-        'Create build and run all jobs'
+        'Create build and run all jobs in branch case (not pull request)'
         self.assertEqual(len(self.repo), 1, "Repo not found")
         self.repo.update()
         branch = self.branch_obj.search(self.repo_domain + [
