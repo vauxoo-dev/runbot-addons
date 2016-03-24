@@ -64,7 +64,7 @@ class TestRunbotJobs(TransactionCase):
 
     def test_10_jobs_branch(self):
         "Create build and run all jobs in branch case (not pull request)"
-        self.run_jobs('refs/head/fast-travis')
+        self.run_jobs('refs/heads/fast-travis')
 
     def test_20_jobs_pr(self):
         "Create build and run all jobs in pull request"
