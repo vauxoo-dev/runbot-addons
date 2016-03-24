@@ -94,7 +94,7 @@ class TestRunbotJobs(TransactionCase):
             build.state, u'running',
             "Job state should be running")
 
-        time.sleep(360)
+        user_ids = self.connection_test(build, 36, 10)
         _logger.info(open(
             os.path.join(build.path(), "logs",
                          "job_30_run.txt")).read())
@@ -102,7 +102,6 @@ class TestRunbotJobs(TransactionCase):
         self.assertEqual(
             build.state, u'running',
             "Job state should be running still")
-        user_ids = self.connection_test(build)
         self.assertEqual(
             len(user_ids) >= 1, True, "Failed connection test")
 
@@ -161,7 +160,8 @@ class TestRunbotJobs(TransactionCase):
             build.state, u'running',
             "Job state should be running")
 
-        time.sleep(360)
+        user_ids = self.connection_test(build, 36, 10)
+
         _logger.info(open(
             os.path.join(build.path(), "logs",
                          "job_30_run.txt")).read())
@@ -169,7 +169,6 @@ class TestRunbotJobs(TransactionCase):
         self.assertEqual(
             build.state, u'running',
             "Job state should be running still")
-        user_ids = self.connection_test(build)
         self.assertEqual(
             len(user_ids) >= 1, True, "Failed connection test")
 
@@ -192,19 +191,26 @@ class TestRunbotJobs(TransactionCase):
         tag_build = build.docker_image_cache.split(':')[-1]
         return tag_build in tag_list_output
 
-    def connection_test(self, build):
+    def connection_test(self, build, attempts=1, delay=0):
         username = "admin"
         password = "admin"
         database_name = "openerp_test"
         port = build.port
         host = '127.0.0.1'
-        sock_common = xmlrpclib.ServerProxy(
-            "http://%s:%d/xmlrpc/common" % (host, port))
-        uid = sock_common.login(
-            database_name, username, password)
-        sock = xmlrpclib.ServerProxy(
-            "http://%s:%d/xmlrpc/object" % (host, port))
-        user_ids = sock.execute(
-            database_name, uid, password, 'res.users',
-            'search', [('login', '=', 'admin')])
+        user_ids = []
+        for _ in range(attempts):
+            try:
+                sock_common = xmlrpclib.ServerProxy(
+                    "http://%s:%d/xmlrpc/common" % (host, port))
+                uid = sock_common.login(
+                    database_name, username, password)
+                sock = xmlrpclib.ServerProxy(
+                    "http://%s:%d/xmlrpc/object" % (host, port))
+                user_ids = sock.execute(
+                    database_name, uid, password, 'res.users',
+                    'search', [('login', '=', 'admin')])
+                return user_ids
+            except BaseException:
+                pass
+            time.sleep(delay)
         return user_ids
