@@ -72,7 +72,7 @@ class TestRunbotJobs(TransactionCase):
 
     def run_jobs(self, branch):
         self.assertTrue(
-            self.exists_container('registry'),
+            self.exists_container('registry', include_stop=False),
             "A docker registry is required. Try running: "
             "'docker run -d -p 5000:5000 --name registry registry:2'")
         self.assertEqual(len(self.repo), 1, "Repo not found")
@@ -154,8 +154,10 @@ class TestRunbotJobs(TransactionCase):
             )
             self.delete_image_cache(build)
 
-    def exists_container(self, container_name):
-        cmd = ['docker', 'ps', '-a']
+    def exists_container(self, container_name, include_stop=True):
+        cmd = ['docker', 'ps']
+        if include_stop:
+            cmd.append('-a')
         containers = subprocess.check_output(cmd)
         if container_name in containers:
             return True
