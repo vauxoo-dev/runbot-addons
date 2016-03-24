@@ -64,17 +64,17 @@ class TestRunbotJobs(TransactionCase):
 
     def test_10_jobs_branch(self):
         "Create build and run all jobs in branch case (not pull request)"
-        self.run_jobs('fast-travis')
+        self.run_jobs('refs/head/fast-travis')
 
     def test_20_jobs_pr(self):
         "Create build and run all jobs in pull request"
-        self.run_jobs('pull/1')
+        self.run_jobs('refs/pull/1')
 
     def run_jobs(self, branch):
         self.assertEqual(len(self.repo), 1, "Repo not found")
         self.repo.update()
         branch = self.branch_obj.search(self.repo_domain + [
-            ('name', 'like', branch)], limit=1)
+            ('name', '=', branch)], limit=1)
         self.assertEqual(len(branch), 1, "Branch not found")
         self.build_obj.search([('branch_id', '=', branch.id)]).unlink()
 
