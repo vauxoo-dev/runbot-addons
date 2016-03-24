@@ -62,18 +62,19 @@ class TestRunbotJobs(TransactionCase):
         # The build don't changed of job.
         return False
 
-    def test_jobs_branch_and_pr(self):
-        "Create build and run all jobs in branch and PR"
-        # We need both test before a rollback
-        self.jobs_branch()
-        self.jobs_pull_request()
+    def test_10_jobs_branch(self):
+        "Create build and run all jobs in branch case (not pull request)"
+        self.run_jobs('fast-travis')
 
-    def jobs_branch(self):
-        'Create build and run all jobs in branch case (not pull request)'
+    def test_20_jobs_pr(self):
+        "Create build and run all jobs in pull request"
+        self.run_jobs('pull/1')
+
+    def run_jobs(self, branch):
         self.assertEqual(len(self.repo), 1, "Repo not found")
         self.repo.update()
         branch = self.branch_obj.search(self.repo_domain + [
-            ('name', 'like', 'fast')], limit=1)
+            ('name', 'like', branch)], limit=1)
         self.assertEqual(len(branch), 1, "Branch not found")
         self.build_obj.search([('branch_id', '=', branch.id)]).unlink()
 
@@ -87,6 +88,7 @@ class TestRunbotJobs(TransactionCase):
             # runbot will skip this build then we are forcing it
             build.force()
 
+        build.checkout()
         self.delete_build_path(build)
         self.assertEqual(
             build.state, u'pending', "State should be pending")
@@ -94,11 +96,16 @@ class TestRunbotJobs(TransactionCase):
         self.repo.cron()
         self.assertEqual(
             build.state, u'testing', "State should be testing")
-        self.assertEqual(
-            build.job, u'job_10_test_base', "Job should be job_10_test_base")
-        new_current_job = self.wait_change_job(build.job, build)
-        _logger.info(open(os.path.join(build.path(), "logs",
-                                       "job_10_test_base.txt")).read())
+        if not build.is_pull_request:
+            self.assertEqual(
+                build.job, u'job_10_test_base',
+                "Job should be job_10_test_base")
+            new_current_job = self.wait_change_job(build.job, build)
+            _logger.info(
+                open(os.path.join(build.path(), "logs",
+                                  "job_10_test_base.txt")).read())
+        else:
+            new_current_job = u'job_20_test_all'
 
         self.assertEqual(
             new_current_job, u'job_20_test_all')
@@ -127,85 +134,24 @@ class TestRunbotJobs(TransactionCase):
 
         self.assertEqual(
             build.result, u'ok', "Job result should be ok")
-
-        build.kill()
-        self.assertEqual(
-            build.state, u'done', "Job state should be done")
-
         self.assertTrue(
-            self.docker_registry_test(build),
-            "Docker image don't found in registry.",
-        )
-        self.assertFalse(
-            self.exists_container(build), "Container dont't deleted")
-        self.delete_image_cache(build)
-
-    def jobs_pull_request(self):
-        "Check cache jobs in branch of pull request"
-        self.repo.update()
-        branch = self.branch_obj.search(self.repo_domain + [
-            ('name', 'like', 'pull')], limit=1)
-
-        self.assertEqual(len(branch), 1, "Branch not found")
-        self.build_obj.search([('branch_id', '=', branch.id)]).unlink()
-
-        self.repo.update()
-        build = self.build_obj.search([
-            ('branch_id', '=', branch.id)], limit=1)
-        self.assertEqual(len(build) == 0, False, "Build not found")
-        build.checkout()
-        self.delete_build_path(build)
-        self.delete_image_cache(build)
-
-        self.assertEqual(
-            build.state, u'pending', "State should be pending")
-
-        self.repo.cron()
-        self.assertEqual(
-            build.state, u'testing', "State should be testing")
-        # Use of cache don't build, directly run tests
-        self.assertEqual(
-            build.job, u'job_20_test_all',
-            "Job should be job_20_test_all")
-
-        new_current_job = self.wait_change_job(build.job, build)
-        _logger.info(open(
-            os.path.join(build.path(), "logs",
-                         "job_20_test_all.txt")).read())
-
-        self.assertEqual(
-            new_current_job, u'job_30_run',
-            "Job should be job_30_run")
-        self.assertEqual(
-            build.state, u'running',
-            "Job state should be running")
-
-        user_ids = self.connection_test(build, 36, 10)
-
-        _logger.info(open(
-            os.path.join(build.path(), "logs",
-                         "job_30_run.txt")).read())
-
-        self.assertEqual(
-            build.state, u'running',
-            "Job state should be running still")
-        self.assertEqual(
-            len(user_ids) >= 1, True, "Failed connection test")
-
-        self.assertEqual(
-            build.result, u'ok', "Job result should be ok")
-
+            self.exists_container(build), "Container dont't exists")
         build.kill()
         self.assertEqual(
             build.state, u'done', "Job state should be done")
         self.assertFalse(
-            self.exists_container(build), "Container dont't deleted")
-        self.delete_image_cache(build)
+            self.exists_container(build), "Container don't deleted")
+        if not build.is_pull_request:
+            self.assertTrue(
+                self.docker_registry_test(build),
+                "Docker image don't found in registry.",
+            )
+            self.delete_image_cache(build)
 
     def exists_container(self, build):
         cmd = ['docker', 'ps']
         containers = subprocess.check_output(cmd)
-        if subprocess.check_output(cmd) in containers:
+        if build.get_docker_container() in containers:
             return True
         return False
 
