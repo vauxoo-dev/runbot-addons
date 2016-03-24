@@ -47,7 +47,7 @@ class TestRunbotJobs(TransactionCase):
 
     @openerp.tools.mute_logger('openerp.addons.runbot.runbot')
     def wait_change_job(self, current_job, build,
-                        loops=36, timeout=10):
+                        loops=40, timeout=20):
         _logger.info("Waiting change of job")
         for count in range(loops):
             self.repo.cron()
@@ -56,7 +56,8 @@ class TestRunbotJobs(TransactionCase):
             time.sleep(timeout)
             if divmod(count + 1, 5)[1] == 0:
                 _logger.info("...")
-        raise BaseException("The build don't changed of job.")
+        # The build don't changed of job.
+        return False
 
     def test_jobs_branch(self):
         'Create build and run all jobs in branch case (not pull request)'
@@ -78,15 +79,13 @@ class TestRunbotJobs(TransactionCase):
         self.assertEqual(
             build.state, u'testing', "State should be testing")
         self.assertEqual(
-            build.job, u'job_10_test_base',
-            "Job should be job_10_test_base")
+            build.job, u'job_10_test_base', "Job should be job_10_test_base")
         new_current_job = self.wait_change_job(build.job, build)
         _logger.info(open(os.path.join(build.path(), "logs",
                                        "job_10_test_base.txt")).read())
 
         self.assertEqual(
-            new_current_job, u'job_20_test_all',
-            "Job should be job_20_test_all")
+            new_current_job, u'job_20_test_all')
         new_current_job = self.wait_change_job(new_current_job, build)
         _logger.info(open(
             os.path.join(build.path(), "logs",
