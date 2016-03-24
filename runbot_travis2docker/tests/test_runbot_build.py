@@ -125,19 +125,20 @@ class TestRunbotJobs(TransactionCase):
         self.assertEqual(
             len(user_ids) >= 1, True, "Failed connection test")
 
+        self.assertEqual(
+            build.result, u'ok', "Job result should be ok")
+
         build.kill()
         self.assertEqual(
             build.state, u'done', "Job state should be done")
-
-        self.assertEqual(
-            build.result, u'ok', "Job result should be ok")
 
         self.assertTrue(
             self.docker_registry_test(build),
             "Docker image don't found in registry.",
         )
+        self.assertFalse(
+            self.exists_container(build), "Container dont't deleted")
         self.delete_image_cache(build)
-        self.delete_container(build)
 
     def jobs_pull_request(self):
         "Check cache jobs in branch of pull request"
@@ -192,14 +193,22 @@ class TestRunbotJobs(TransactionCase):
         self.assertEqual(
             len(user_ids) >= 1, True, "Failed connection test")
 
+        self.assertEqual(
+            build.result, u'ok', "Job result should be ok")
+
         build.kill()
         self.assertEqual(
             build.state, u'done', "Job state should be done")
-
-        self.assertEqual(
-            build.result, u'ok', "Job result should be ok")
+        self.assertFalse(
+            self.exists_container(build), "Container dont't deleted")
         self.delete_image_cache(build)
-        self.delete_container(build)
+
+    def exists_container(self, build):
+        cmd = ['docker', 'ps']
+        containers = subprocess.check_output(cmd)
+        if subprocess.check_output(cmd) in containers:
+            return True
+        return False
 
     def docker_registry_test(self, build):
         cmd = [
