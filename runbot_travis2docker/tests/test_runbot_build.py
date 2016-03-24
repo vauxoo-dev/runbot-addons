@@ -136,6 +136,7 @@ class TestRunbotJobs(TransactionCase):
 
         build.checkout()
         self.delete_image_cache(build)
+        self.delete_container(build)
 
         self.assertEqual(
             build.state, u'pending', "State should be pending")
