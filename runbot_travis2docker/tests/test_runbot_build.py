@@ -27,6 +27,9 @@ class TestRunbotJobs(TransactionCase):
             ('is_travis2docker_build', '=', True)], limit=1)
         self.repo_domain = [('repo_id', '=', self.repo.id)]
 
+    def delete_build_path(self, build):
+        subprocess.check_output(['rm', '-rf', build.path()])
+
     def delete_image_cache(self, build):
         cmd = ['docker', 'rmi', '-f', build.docker_image_cache]
         res = -1
@@ -59,7 +62,13 @@ class TestRunbotJobs(TransactionCase):
         # The build don't changed of job.
         return False
 
-    def test_jobs_branch(self):
+    def test_jobs_branch_and_pr(self):
+        "Create build and run all jobs in branch and PR"
+        # We need both test before a rollback
+        self.jobs_branch()
+        self.jobs_pull_request()
+
+    def jobs_branch(self):
         'Create build and run all jobs in branch case (not pull request)'
         self.assertEqual(len(self.repo), 1, "Repo not found")
         self.repo.update()
@@ -78,6 +87,7 @@ class TestRunbotJobs(TransactionCase):
             # runbot will skip this build then we are forcing it
             build.force()
 
+        self.delete_build_path(build)
         self.assertEqual(
             build.state, u'pending', "State should be pending")
 
@@ -129,7 +139,7 @@ class TestRunbotJobs(TransactionCase):
         self.delete_image_cache(build)
         self.delete_container(build)
 
-    def test_jobs_pull_request(self):
+    def jobs_pull_request(self):
         "Check cache jobs in branch of pull request"
         self.repo.update()
         branch = self.branch_obj.search(self.repo_domain + [
@@ -142,8 +152,8 @@ class TestRunbotJobs(TransactionCase):
         build = self.build_obj.search([
             ('branch_id', '=', branch.id)], limit=1)
         self.assertEqual(len(build) == 0, False, "Build not found")
-
         build.checkout()
+        self.delete_build_path(build)
         self.delete_image_cache(build)
         self.delete_container(build)
 
