@@ -73,7 +73,7 @@ class TestRunbotJobs(TransactionCase):
     def run_jobs(self, branch):
         self.assertTrue(
             self.exists_container('registry', include_stop=False),
-            "A docker registry is required. Try running: "
+            "A docker container registry is required. Try running: "
             "'docker run -d -p 5000:5000 --name registry registry:2'")
         self.assertEqual(len(self.repo), 1, "Repo not found")
         self.repo.update()
