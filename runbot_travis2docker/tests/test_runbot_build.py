@@ -52,11 +52,11 @@ class TestRunbotJobs(TransactionCase):
         for count in range(loops):
             self.repo.cron()
             if build.job != current_job:
-                break
+                return build.job
             time.sleep(timeout)
             if divmod(count + 1, 5)[1] == 0:
                 _logger.info("...")
-        return build.job
+        raise BaseException("The build don't changed of job.")
 
     def test_jobs_branch(self):
         'Create build and run all jobs in branch case (not pull request)'
