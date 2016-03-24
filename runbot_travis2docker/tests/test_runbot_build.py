@@ -71,6 +71,10 @@ class TestRunbotJobs(TransactionCase):
         self.run_jobs('refs/pull/1')
 
     def run_jobs(self, branch):
+        self.assertTrue(
+            self.exists_container('registry'),
+            "A docker registry is required. Try running: "
+            "'docker run -d -p 5000:5000 --name registry registry:2'")
         self.assertEqual(len(self.repo), 1, "Repo not found")
         self.repo.update()
         branch = self.branch_obj.search(self.repo_domain + [
@@ -135,12 +139,14 @@ class TestRunbotJobs(TransactionCase):
         self.assertEqual(
             build.result, u'ok', "Job result should be ok")
         self.assertTrue(
-            self.exists_container(build), "Container dont't exists")
+            self.exists_container(build.docker_container),
+            "Container dont't exists")
         build.kill()
         self.assertEqual(
             build.state, u'done', "Job state should be done")
         self.assertFalse(
-            self.exists_container(build), "Container don't deleted")
+            self.exists_container(build.docker_container),
+            "Container don't deleted")
         if not build.is_pull_request:
             self.assertTrue(
                 self.docker_registry_test(build),
@@ -148,10 +154,10 @@ class TestRunbotJobs(TransactionCase):
             )
             self.delete_image_cache(build)
 
-    def exists_container(self, build):
+    def exists_container(self, container_name):
         cmd = ['docker', 'ps', '-a']
         containers = subprocess.check_output(cmd)
-        if build.get_docker_container() in containers:
+        if container_name in containers:
             return True
         return False
 
