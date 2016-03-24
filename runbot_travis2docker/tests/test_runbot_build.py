@@ -183,8 +183,9 @@ class TestRunbotJobs(TransactionCase):
                 user_ids = sock.execute(
                     database_name, uid, password, 'res.users',
                     'search', [('login', '=', 'admin')])
+                _logger.info("Trying connect... connected.")
                 return user_ids
             except BaseException:
-                pass
+                _logger.info("Trying connect... failed.")
             time.sleep(delay)
         return user_ids
