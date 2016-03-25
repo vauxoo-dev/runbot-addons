@@ -94,8 +94,10 @@ class RunbotBuild(models.Model):
                     _logger.info('Pushing image: ' + ' '.join(cmd))
                     sp = subprocess.Popen(
                         cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                    out, err = sp.communicate()
-                    _logger.info(out)
+                    # out, err = sp.communicate()
+                    for line in iter(sp.stdout.readline, ''):
+                        _logger.info(line)
+                    err = sp.stderr.read()
                     if err:
                         _logger.error(err)
 #                     try:
