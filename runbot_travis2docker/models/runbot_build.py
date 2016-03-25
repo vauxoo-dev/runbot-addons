@@ -245,7 +245,7 @@ class RunbotBuild(models.Model):
             run(cmd)
         cmd = ["docker", "images"]
         dkr_img_res = subprocess.check_output(cmd).strip(' \r').split('\n')
-        if not build.docker_image_cache in dkr_img_res:
+        if build.docker_image_cache not in dkr_img_res:
             # Don't exists image
             _logger.warning(
                 "Image cache '%s' don't exists for build %d with branch %s."
