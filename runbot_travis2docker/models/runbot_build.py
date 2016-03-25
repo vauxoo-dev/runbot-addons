@@ -251,7 +251,10 @@ class RunbotBuild(models.Model):
         if not dkr_img_res:
             # Don't exists image
             _logger.warning(
-                "Image cache '%s' don't exists.", build.docker_image_cache)
+                "Image cache '%s' don't exists for build %d with branch %s."
+                "Is PR?: %s",
+                build.docker_image_cache, build.sequence,
+                build.branch_id.name, build.is_pull_request)
             use_cache = False
         return use_cache
 
