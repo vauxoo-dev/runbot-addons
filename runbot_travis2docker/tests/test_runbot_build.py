@@ -108,6 +108,10 @@ class TestRunbotJobs(TransactionCase):
         self.repo.cron()
         self.assertEqual(
             build.state, u'testing', "State should be testing")
+        images_result = subprocess.check_output(['docker', 'images'])
+        _logger.info(images_result)
+        containers_result = subprocess.check_output(['docker', 'ps'])
+        _logger.info(containers_result)
         if not build.is_pull_request:
             self.assertEqual(
                 build.job, u'job_10_test_base',
