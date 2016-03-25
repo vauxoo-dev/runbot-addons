@@ -122,8 +122,6 @@ class TestRunbotJobs(TransactionCase):
                 "Docker image don't found in registry to re-use in PR.",
             )
             new_current_job = u'job_20_test_all'
-            # Sleeping to wait change of state
-            time.sleep(30)
 
         self.assertEqual(
             new_current_job, u'job_20_test_all')
@@ -211,6 +209,7 @@ class TestRunbotJobs(TransactionCase):
                 _logger.info("Trying connect... connected.")
                 return user_ids
             except BaseException:
-                _logger.info("Trying connect... failed.")
+                _logger.info("Trying connect to build %s %s:%s... failed.",
+                             build.sequence, host, port)
             time.sleep(delay)
         return user_ids
