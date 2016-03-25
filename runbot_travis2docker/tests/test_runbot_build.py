@@ -166,7 +166,7 @@ class TestRunbotJobs(TransactionCase):
             self.delete_image_cache(build)
         # Runbot original module use cr.commit
         # This commit help us to have all data in database
-        self.cr.commit()
+        self.cr.commit()  # pylint: disable=invalid-commit
 
     def exists_container(self, container_name, include_stop=True):
         cmd = ['docker', 'ps']
