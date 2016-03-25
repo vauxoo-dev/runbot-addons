@@ -108,7 +108,7 @@ class TestRunbotJobs(TransactionCase):
         self.repo.cron()
         self.assertEqual(
             build.state, u'testing', "State should be testing")
-        if not build.is_pull_request:
+        if not build.is_pull_request or True:
             self.assertEqual(
                 build.job, u'job_10_test_base',
                 "Job should be job_10_test_base")
