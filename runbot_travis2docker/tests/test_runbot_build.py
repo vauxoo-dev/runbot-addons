@@ -116,6 +116,10 @@ class TestRunbotJobs(TransactionCase):
                 open(os.path.join(build.path(), "logs",
                                   "job_10_test_base.txt")).read())
         else:
+            self.assertTrue(
+                self.docker_registry_test(build),
+                "Docker image don't found in registry to re-use in PR.",
+            )
             new_current_job = u'job_20_test_all'
 
         self.assertEqual(
