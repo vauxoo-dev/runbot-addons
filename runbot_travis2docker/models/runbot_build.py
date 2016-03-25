@@ -96,7 +96,7 @@ class RunbotBuild(models.Model):
                         cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
                     # out, err = sp.communicate()
                     for line in iter(sp.stdout.readline, ''):
-                        _logger.info(line)
+                        _logger.info(line.strip('\n\r '))
                     err = sp.stderr.read()
                     if err:
                         _logger.error(err)
