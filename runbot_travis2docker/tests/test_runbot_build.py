@@ -84,14 +84,15 @@ class TestRunbotJobs(TransactionCase):
             "'docker run -d -p 5000:5000 --name registry registry:2'")
         self.assertEqual(len(self.repo), 1, "Repo not found")
         self.repo.update()
+        self.repo.killall()
         branch = self.branch_obj.search(self.repo_domain + [
             ('name', '=', branch)], limit=1)
         self.assertEqual(len(branch), 1, "Branch not found")
-        self.build_obj.search([('branch_id', '=', branch.id)]).kill()
+        self.build_obj.search([('branch_id', '=', branch.id]).unlik()
 
         self.repo.update()
         build = self.build_obj.search([
-            ('branch_id', '=', branch.id)], limit=1)
+            ('branch_id', '=', branch.id)], limit=1, order='id desc')
         self.assertEqual(len(build) == 0, False, "Build not found")
 
         if build.state == 'done' and build.result == 'skipped':
