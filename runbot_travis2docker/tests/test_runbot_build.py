@@ -68,11 +68,11 @@ class TestRunbotJobs(TransactionCase):
         _logger = logging.getLogger(__name__ + '.def test_10_jobs_branch')
         self.run_jobs('refs/heads/fast-travis')
 
-    # def test_20_jobs_pr(self):
-    #     "Create build and run all jobs in pull request"
-    #     global _logger  # pylint: disable=global-statement
-    #     _logger = logging.getLogger(__name__ + '.def test_20_jobs_pr')
-    #     self.run_jobs('refs/pull/1')
+    def test_20_jobs_pr(self):
+        "Create build and run all jobs in pull request"
+        global _logger  # pylint: disable=global-statement
+        _logger = logging.getLogger(__name__ + '.def test_20_jobs_pr')
+        self.run_jobs('refs/pull/1')
 
     def run_jobs(self, branch):
         self.assertTrue(
@@ -118,13 +118,12 @@ class TestRunbotJobs(TransactionCase):
         self.assertEqual(
             new_current_job, u'job_20_test_all')
         new_current_job = self.wait_change_job(new_current_job, build)
+        self.assertEqual(new_current_job, u'job_30_run',
+                         "Job should be job_30_run")
         _logger.info(open(
             os.path.join(build.path(), "logs",
                          "job_20_test_all.txt")).read())
 
-        self.assertEqual(
-            new_current_job, u'job_30_run',
-            "Job should be job_30_run")
         self.assertEqual(
             build.state, u'running',
             "Job state should be running")
