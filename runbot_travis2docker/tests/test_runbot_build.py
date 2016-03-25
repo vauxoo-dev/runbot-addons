@@ -62,6 +62,9 @@ class TestRunbotJobs(TransactionCase):
         # The build don't changed of job.
         return False
 
+    def check_registry_service(self):
+        pass
+
     def test_10_jobs_branch(self):
         "Create build and run all jobs in branch case (not pull request)"
         global _logger  # pylint: disable=global-statement
