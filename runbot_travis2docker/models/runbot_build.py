@@ -92,16 +92,22 @@ class RunbotBuild(models.Model):
                 if build.repo_id.docker_registry_server:
                     cmd = ['docker', 'push', image_cached]
                     _logger.info('Pushing image: ' + ' '.join(cmd))
-                    try:
-                        run(cmd)
-                    except OSError:
-                        # run make a error interrupted system call in travis
-                        try:
-                            subprocess.check_output(cmd)
-                        except subprocess.CalledProcessError as scpe:
-                            msg = scpe.output
-                            _logger.error(msg)
-                            raise BaseException(msg)
+                    sp = subprocess.Popen(
+                        cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                    out, err = sp.communicate()
+                    _logger.info(out)
+                    if err:
+                        _logger.error(err)
+#                     try:
+#                         run(cmd)
+#                     except OSError:
+#                         # run make a error interrupted system call in travis
+#                         try:
+#                             subprocess.check_output(cmd)
+#                         except subprocess.CalledProcessError as scpe:
+#                             msg = scpe.output
+#                             _logger.error(msg)
+#                             raise BaseException(msg)
 
     def get_docker_build_cmd(self):
         self.ensure_one()
