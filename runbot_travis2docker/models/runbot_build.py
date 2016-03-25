@@ -243,12 +243,9 @@ class RunbotBuild(models.Model):
             cmd = ["docker", "pull", build.docker_image_cache]
             _logger.info("Pulling image cache: %s", ' '.join(cmd))
             run(cmd)
-        cmd = [
-            "docker", "images", "-q",
-            build.docker_image_cache]
-        dkr_img_res = subprocess.check_output(cmd).strip(' \r\n')
-        # TODO: Validate when docker return a not connection error.
-        if not dkr_img_res:
+        cmd = ["docker", "images"]
+        dkr_img_res = subprocess.check_output(cmd).strip(' \r').split('\n')
+        if not build.docker_image_cache in dkr_img_res:
             # Don't exists image
             _logger.warning(
                 "Image cache '%s' don't exists for build %d with branch %s."
