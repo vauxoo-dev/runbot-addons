@@ -250,6 +250,8 @@ class RunbotBuild(models.Model):
         # TODO: Validate when docker return a not connection error.
         if not dkr_img_res:
             # Don't exists image
+            _logger.warning(
+                "Image cache '%s' don't exists.", build.docker_image_cache)
             use_cache = False
         return use_cache
 
