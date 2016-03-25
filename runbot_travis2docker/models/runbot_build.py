@@ -245,6 +245,7 @@ class RunbotBuild(models.Model):
             run(cmd)
         cmd = ["docker", "images", "-q", build.docker_image_cache]
         dkr_img_res = subprocess.check_output(cmd).strip(' \r\n')
+        # TODO: Validate when docker return a not connection error
         _logger.warn("Result of docker images %s", dkr_img_res)
         if not dkr_img_res:
             # Don't exists image
