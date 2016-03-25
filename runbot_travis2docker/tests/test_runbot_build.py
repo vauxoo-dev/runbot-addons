@@ -121,6 +121,8 @@ class TestRunbotJobs(TransactionCase):
                 "Docker image don't found in registry to re-use in PR.",
             )
             new_current_job = u'job_20_test_all'
+            # Sleeping to wait change of state
+            time.sleep(30)
 
         self.assertEqual(
             new_current_job, u'job_20_test_all')
