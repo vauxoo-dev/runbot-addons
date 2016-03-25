@@ -125,8 +125,9 @@ class TestRunbotJobs(TransactionCase):
         self.assertEqual(
             new_current_job, u'job_20_test_all')
         new_current_job = self.wait_change_job(new_current_job, build)
-        self.assertEqual(new_current_job, u'job_30_run',
-                         "Job should be job_30_run")
+        self.assertEqual(
+            new_current_job, u'job_30_run',
+            "Job should be job_30_run, found %s" % new_current_job)
         _logger.info(open(
             os.path.join(build.path(), "logs",
                          "job_20_test_all.txt")).read())
