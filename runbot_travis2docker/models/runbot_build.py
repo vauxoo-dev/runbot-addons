@@ -214,6 +214,16 @@ class RunbotBuild(models.Model):
         cmd = ['docker', 'start', '-i', build.docker_container]
         return self.spawn(cmd, lock_path, log_path)
 
+    def get_docker_images(self):
+        cmd = ["docker", "images"]
+        images_out = subprocess.check_output(cmd).strip('\r\n ')
+        images = []
+        for line in images_out.split('\n')[1:]:
+            cols = filter(str, line.split(' '))
+            image_name = ':'.join(cols[:2])
+            images.append(image_name)
+        return images
+
     def use_build_cache(self):
         """Check if a build is candidate to use cache.
             * Change in .travis.yml then don't use cache.
@@ -243,11 +253,9 @@ class RunbotBuild(models.Model):
             cmd = ["docker", "pull", build.docker_image_cache]
             _logger.info("Pulling image cache: %s", ' '.join(cmd))
             run(cmd)
-        cmd = ["docker", "images", "-q", build.docker_image_cache]
-        dkr_img_res = subprocess.check_output(cmd).strip(' \r\n')
-        # TODO: Validate when docker return a not connection error
+        current_docker_images = self.get_docker_images()
         _logger.warn("Result of docker images %s", dkr_img_res)
-        if not dkr_img_res:
+        if build.docker_image_cache not in current_docker_images:
             # Don't exists image
             _logger.warning(
                 "Image cache '%s' don't exists for build %d with branch %s."
