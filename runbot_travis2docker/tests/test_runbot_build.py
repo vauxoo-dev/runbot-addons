@@ -6,6 +6,7 @@
 import logging
 import os
 import subprocess
+import pwd
 import time
 import xmlrpclib
 
@@ -88,6 +89,9 @@ class TestRunbotJobs(TransactionCase):
         "Create build and run all jobs of branch case with native methods"
         global _logger  # pylint: disable=global-statement
         _logger = logging.getLogger(__name__ + '.def test_30_jobs_branch')
+        if self.check_root_user():
+            _logger.warn("Root user can't run original workflow.")
+            return False
         self.repo = self.repo.copy({
             'is_travis2docker_build': False,
             'use_docker_cache': False,
@@ -99,6 +103,13 @@ class TestRunbotJobs(TransactionCase):
         # This explicit commit help us to avoid believe
         # that we will have a rollback of the data
         self.cr.commit()  # pylint: disable=invalid-commit
+
+    def check_root_user(self):
+        "Detect if the user is 'root' (on POSIX system)."
+        if os.name == 'posix':
+            if pwd.getpwuid(os.getuid())[0] == 'root':
+                return True
+        return False
 
     # TODO: Use a common class to add this method.
     def run_jobs(self, branch):
