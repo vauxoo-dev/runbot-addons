@@ -25,7 +25,6 @@ class TestRunbotJobs(TransactionCase):
         self.branch_obj = self.env['runbot.branch']
         self.repo = self.repo_obj.search([
             ('is_travis2docker_build', '=', True)], limit=1)
-        self.repo_domain = [('repo_id', '=', self.repo.id)]
 
     def delete_build_path(self, build):
         subprocess.check_output(['rm', '-rf', build.path()])
@@ -70,22 +69,51 @@ class TestRunbotJobs(TransactionCase):
         global _logger  # pylint: disable=global-statement
         _logger = logging.getLogger(__name__ + '.def test_10_jobs_branch')
         self.run_jobs('refs/heads/fast-travis')
+        # Runbot original module use cr.commit :(
+        # This explicit commit help us to avoid believe
+        # that we will have a rollback of the data
+        self.cr.commit()  # pylint: disable=invalid-commit
 
     def test_20_jobs_pr(self):
         "Create build and run all jobs in pull request"
         global _logger  # pylint: disable=global-statement
         _logger = logging.getLogger(__name__ + '.def test_20_jobs_pr')
         self.run_jobs('refs/pull/1')
+        # Runbot original module use cr.commit :(
+        # This explicit commit help us to avoid believe
+        # that we will have a rollback of the data
+        self.cr.commit()  # pylint: disable=invalid-commit
 
+    def test_30_jobs_branch(self):
+        "Create build and run all jobs of branch case with native methods"
+        global _logger  # pylint: disable=global-statement
+        _logger = logging.getLogger(__name__ + '.def test_30_jobs_branch')
+        self.repo = self.repo.copy({
+            'is_travis2docker_build': False,
+            'use_docker_cache': False,
+            'docker_registry_server': False,
+        })
+        self.run_jobs('refs/heads/8.0')
+        self.repo.unlink()
+        # Runbot original module use cr.commit :(
+        # This explicit commit help us to avoid believe
+        # that we will have a rollback of the data
+        self.cr.commit()  # pylint: disable=invalid-commit
+
+    # TODO: Use a common class to add this method.
     def run_jobs(self, branch):
-        self.assertTrue(
-            self.exists_container('registry', include_stop=False),
-            "A docker container registry is required. Try running: "
-            "'docker run -d -p 5000:5000 --name registry registry:2'")
+        if self.repo.docker_registry_server:
+            self.assertTrue(
+                self.exists_container('registry', include_stop=False),
+                "A docker container registry is required. Try running: "
+                "'docker run -d -p 5000:5000 --name registry registry:2'")
         self.assertEqual(len(self.repo), 1, "Repo not found")
         self.repo.update()
-        self.repo.killall()
-        branch = self.branch_obj.search(self.repo_domain + [
+        self.build_obj.search([('state', 'in', ['pending', 'done'])]).write(
+            {'state': 'done', 'result': 'killed'})
+        self.repo_obj.killall()
+        branch = self.branch_obj.search([
+            ('repo_id', '=', self.repo.id),
             ('name', '=', branch)], limit=1)
         self.assertEqual(len(branch), 1, "Branch not found")
         self.build_obj.search([('branch_id', '=', branch.id)]).unlink()
@@ -100,6 +128,8 @@ class TestRunbotJobs(TransactionCase):
             # runbot will skip this build then we are forcing it
             build.force()
 
+        # Get values from checkout but after the build is deleted to continue
+        #   workflow
         build.checkout()
         self.delete_build_path(build)
         self.assertEqual(
@@ -112,7 +142,7 @@ class TestRunbotJobs(TransactionCase):
         _logger.info(images_result)
         containers_result = subprocess.check_output(['docker', 'ps'])
         _logger.info(containers_result)
-        if not build.is_pull_request:
+        if not build.is_pull_request or not build.repo_id.use_docker_cache:
             self.assertEqual(
                 build.job, u'job_10_test_base',
                 "Job should be job_10_test_base")
@@ -154,25 +184,23 @@ class TestRunbotJobs(TransactionCase):
 
         self.assertEqual(
             build.result, u'ok', "Job result should be ok")
-        self.assertTrue(
-            self.exists_container(build.docker_container),
-            "Container dont't exists")
+        if build.repo_id.is_travis2docker_build:
+            self.assertTrue(
+                self.exists_container(build.docker_container),
+                "Container don't exists")
         build.kill()
         self.assertEqual(
             build.state, u'done', "Job state should be done")
-        self.assertFalse(
-            self.exists_container(build.docker_container),
-            "Container don't deleted")
-        if not build.is_pull_request:
+        if build.repo_id.is_travis2docker_build:
+            self.assertFalse(
+                self.exists_container(build.docker_container),
+                "Container don't deleted")
+        if not build.is_pull_request and build.repo_id.docker_cache:
             self.assertTrue(
                 self.docker_registry_test(build),
                 "Docker image don't found in registry.",
             )
             self.delete_image_cache(build)
-        # Runbot original module use cr.commit :(
-        # This explicit commit help us to avoid believe
-        # that we will have a rollback of the data
-        self.cr.commit()  # pylint: disable=invalid-commit
 
     def exists_container(self, container_name, include_stop=True):
         cmd = ['docker', 'ps']
