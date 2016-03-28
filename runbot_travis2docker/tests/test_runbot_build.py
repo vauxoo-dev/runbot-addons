@@ -85,7 +85,7 @@ class TestRunbotJobs(TransactionCase):
         # that we will have a rollback of the data
         self.cr.commit()  # pylint: disable=invalid-commit
 
-    def test_30_jobs_branch(self):
+    def test_00_jobs_branch(self):
         "Create build and run all jobs of branch case with native methods"
         global _logger  # pylint: disable=global-statement
         _logger = logging.getLogger(__name__ + '.def test_30_jobs_branch')
