@@ -225,8 +225,16 @@ class RunbotBuild(models.Model):
         cmd = ['docker', 'start', '-i', build.docker_container]
         return self.spawn(cmd, lock_path, log_path)
 
-    def get_docker_images(self):
-        cmd = ["docker", "images"]
+    def get_docker_images(self, dangling=False):
+        """Get list of images name.
+        :param dangling boolean: if True get untagged images sha.
+            e.g. ['01239419', '01203401']
+            If False get tagged images name
+            e.g. ['oca/myimage:8.0_1', 'oca/myimage:8.0_2']
+        """
+        extra_cmd = ['--filter', 'dangling=true', '--no-trunc', '-q'] \
+            if dangling else []
+        cmd = ["docker", "images"] + extra_cmd
         images_out = subprocess.check_output(cmd).strip('\r\n ')
         images = []
         for line in images_out.split('\n')[1:]:
@@ -323,9 +331,17 @@ class RunbotBuild(models.Model):
         for build in self:
             run(['docker', 'rmi', '-f', build.docker_image])
 
+    def docker_rm_untagged(self):
+        images = self.get_docker_images(dangling=True)
+        if not images:
+            return False
+        cmd = ['docker', 'rmi', '-f'] + images
+        run(cmd)
+
     @custom_build
     def _local_cleanup(self, cr, uid, ids, context=None):
         for build in self.browse(cr, uid, ids, context=context):
             if build.docker_container:
                 build.docker_rm_container()
                 build.docker_rm_image()
+                build.docker_rm_untagged()
