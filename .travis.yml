@@ -31,7 +31,7 @@ env:
   # - secure: fZPEKMZyeMTusAW79+EWNm01Ynnv0OPM5UHLAEaf7qvh9JWi+XYwIQNDxPZEH5FmDZ/psRpkByag9zkwy9r88UyiA7P7vJP/cnYc04IS31CqABRGhr4ZRX7yyO39LpaZJR1PQP954tGe5BEQoOUM4YXrnnZJ863J1vsqesUFGHA=
   matrix:
   - LINT_CHECK="1"
-  - TESTS="1" ODOO_REPO="odoo/odoo" INCLUDE=runbot_selftest,runbot_travis2docker,runbot_send_email
+  - TESTS="1" ODOO_REPO="vauxoo/odoo" INCLUDE=runbot_selftest,runbot_travis2docker,runbot_send_email
     # - TESTS="1" ODOO_REPO="OCA/OCB"
 
 virtualenv:
