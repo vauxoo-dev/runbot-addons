@@ -12,7 +12,7 @@ import time
 import traceback
 
 from travis2docker.git_run import GitRun
-from travis2docker.travis2docker import main as t2d
+from travis2docker.cli import main as t2d
 
 import openerp
 from openerp import fields, models, api
