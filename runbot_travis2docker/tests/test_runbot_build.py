@@ -89,13 +89,15 @@ class TestRunbotJobs(TransactionCase):
             ('name', '=', branch)], limit=1)
         self.assertEqual(len(branch), 1, "Branch not found")
         self.build_obj.search([('branch_id', '=', branch.id)]).unlink()
+        self.build_obj.create({'branch_id': branch.id, 'name': 'HEAD'})
+        # runbot module has a inherit in create method
+        # but a "return id" is missed. Then we need to search it.
+        # https://github.com/odoo/odoo-extra/blob/038fd3e/runbot/runbot.py#L599
+        self.build = self.build_obj.search([('branch_id', '=', branch.id)],
+                                           limit=1)
+        self.assertEqual(len(self.build) == 0, False, "Build not found")
 
-        self.repo.update()
-        build = self.build_obj.search([
-            ('branch_id', '=', branch.id)], limit=1, order='id desc')
-        self.assertEqual(len(build) == 0, False, "Build not found")
-
-        if build.state == 'done' and build.result == 'skipped':
+        if self.build.state == 'done' and self.build.result == 'skipped':
             # When the last commit of the repo is too old,
             # runbot will skip this build then we are forcing it
             build.force()
