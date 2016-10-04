@@ -58,6 +58,7 @@
 				</group>
 				<group name="travis2docker" cols="3" string="Travis2Docker Paramenters">
 					<field name="is_travis2docker_build"/>
+                    <field name="travis2docker_test_disable" attrs="{'invisible': [('is_travis2docker_build', '=', False)]}"/>
 					<field name="use_docker_cache"/>
 					<field name="docker_registry_server"/>
 				</group>
