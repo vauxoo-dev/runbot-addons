@@ -9,7 +9,7 @@
         <field name="modules" position="attributes">
           <attribute name="attrs">{'required': [('is_custom_build', '=', True)]}</attribute>
         </field>
-        <xpath expr="//group" position="after">
+        <xpath expr='//sheet/group[1]' position="after">
           <group name="custom">
             <field name="is_custom_build"/>
             <field name="skip_test_jobs"/>
