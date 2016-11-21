@@ -120,7 +120,7 @@ class RunbotBuild(models.Model):
         self.ensure_one()
         build = self
         cmd = [
-            'docker', 'build', '--no-cache', '-t', build.docker_image,
+            'docker', 'build', '--pull', '--no-cache', '-t', build.docker_image,
             build.dockerfile_path,
         ]
         return cmd
