@@ -78,7 +78,7 @@ class RunbotBuild(models.Model):
             return MAGIC_PID_RUN_NEXT_JOB
         cmd = [
             'docker', 'build',
-            "--no-cache",
+            "--no-cache", '--pull',
             "-t", build.docker_image,
             build.dockerfile_path,
         ]
@@ -121,8 +121,10 @@ class RunbotBuild(models.Model):
         ] + pr_cmd_env
         logdb = cr.dbname
         if config['db_host'] and not travis_branch.startswith('7.0'):
-            logdb = 'postgres://{cfg[db_user]}:{cfg[db_password]}@' +\
-                    '{cfg[db_host]}/{db}'.format(cfg=config, db=cr.dbname)
+            logdb = 'postgres://%s:%s@%s/%s' % (
+                config['db_user'], config['db_password'],
+                config['db_host'], cr.dbname,
+            )
         cmd += ['-e', 'SERVER_OPTIONS="--log-db=%s"' % logdb]
         return self.spawn(cmd, lock_path, log_path)
 
