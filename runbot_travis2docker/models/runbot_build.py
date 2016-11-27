@@ -120,7 +120,7 @@ class RunbotBuild(models.Model):
         self.ensure_one()
         build = self
         cmd = [
-            'docker', 'build', '--no-cache', '-t', build.docker_image,
+            'docker', 'build', '--pull', '--no-cache', '-t', build.docker_image,
             build.dockerfile_path,
         ]
         return cmd
@@ -168,6 +168,8 @@ class RunbotBuild(models.Model):
             '-e', 'PG_LOGS_ENABLE=1',
             '-e', 'PG_NON_DURABILITY=1',
             '-e', 'START_SSH=1',
+            '-e', 'TEST_ENABLE=%d' % (
+                not build.repo_id.travis2docker_test_disable),
             '-p', '%d:%d' % (build.port, 8069),
             '-p', '%d:%d' % (build.port + 1, 22),
         ] + pr_cmd_env + cache_cmd_env + [

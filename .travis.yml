@@ -40,25 +40,11 @@ virtualenv:
 install:
   - git clone https://github.com/Vauxoo/maintainer-quality-tools.git ${HOME}/maintainer-quality-tools
   - export PATH=${HOME}/maintainer-quality-tools/travis:${PATH}
-  - pip install gitlab3
-  - pip install docker-py
-  - pip install --upgrade --pre travis2docker
   - travis_install_nightly
-  - git clone --depth=1 https://github.com/odoo/odoo-extra ~/odoo-extra
-  - sed -i '/from matplotlib.font_manager import FontProperties/d' ~/odoo-extra/runbot/runbot.py
-  - sed -i '/from matplotlib.textpath import TextToPath/d' ~/odoo-extra/runbot/runbot.py
-  - sed -i '/'matplotlib'/d' ~/odoo-extra/runbot/__openerp__.py
-  - sed -i "/import test_crawl/d" ~/odoo-extra/runbot/__init__.py
-  - sed -i 's/base.menu_config/base.menu_administration/g' ~/odoo-extra/runbot/res_config_view.xml
-  # Change cron interval to avoid interference with tests
-  - sed -i "s/'interval_number'>1</'interval_number'>120</g" ~/odoo-extra/runbot/runbot.xml
-
-  # odoo-extra has a bunch of v9 modules which aren't compatible, remove them
-  - (cd ~/odoo-extra; rm -rf $(ls | grep -v runbot$))
-  - if [ "${TESTS}" == "1"  ]; then travis_wait docker pull vauxoo/odoo-80-image-shippable-auto; fi
-  - docker run --restart=always -d -p 5000:5000 --name registry registry:2
+  - if [[ "${TESTS}" == "1"   ]]; then ${TRAVIS_BUILD_DIR}/.travis_requirements.sh; fi
 
 script:
+  - docker run -d -p 5000:5000 --name registry registry:2
   - travis_run_tests
 
 after_success:

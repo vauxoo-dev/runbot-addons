@@ -17,3 +17,4 @@ class RunbotRepo(models.Model):
         "images and docker pull cache images. E.g. localhost:5000. "
         "If is empty won't push it. "
         "Don't Use this feature if you use just one runbot server.")
+    travis2docker_test_disable = fields.Boolean('Test Disable?')
