@@ -59,7 +59,8 @@ class RunbotBuild(models.Model):
     def get_docker_image(self, cr, uid, build, context=None):
         git_obj = GitRun(build.repo_id.name, '')
         image_name = git_obj.owner + '-' + git_obj.repo + ':' + \
-            build.name[:7] + '_' + os.path.basename(build.dockerfile_path)
+            build.name[:7] + '_' + os.path.basename(build.dockerfile_path) + \
+            str(build.id)
         return image_name.lower()
 
     def get_docker_container(self, cr, uid, build, context=None):
