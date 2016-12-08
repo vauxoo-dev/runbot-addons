@@ -7,12 +7,8 @@ import logging
 import os
 import requests
 import subprocess
-import sys
 import time
 import traceback
-
-from travis2docker.git_run import GitRun
-from travis2docker.cli import main as t2d
 
 import openerp
 from openerp import fields, models, api
@@ -22,6 +18,13 @@ from openerp.addons.runbot_build_instructions.runbot_build import \
     MAGIC_PID_RUN_NEXT_JOB
 
 _logger = logging.getLogger(__name__)
+
+try:
+    from travis2docker.git_run import GitRun
+    from travis2docker.cli import get_git_data
+    from travis2docker.travis2docker import Travis2Docker
+except ImportError as err:
+    _logger.debug(err)
 
 
 def custom_build(func):
@@ -83,9 +86,11 @@ class RunbotBuild(models.Model):
             if build.repo_id.docker_registry_server else ""
         image_name = registry_host + \
             git_obj.owner + '-' + git_obj.repo + ':' + branch + \
-            '_' + os.path.basename(build.dockerfile_path)
+            '_' + os.path.basename(build.dockerfile_path) + '_'
         if branch_closest:
-            image_name += '_cached'
+            image_name += 'cached'
+        else:
+            image_name += str(build.id)
         return image_name.lower()
 
     def get_docker_container(self):
@@ -277,20 +282,36 @@ class RunbotBuild(models.Model):
     @custom_build
     def checkout(self, cr, uid, ids, context=None):
         """Save travis2docker output"""
-        to_be_skipped_ids = ids
+        to_be_skipped_ids = ids[:]
         for build in self.browse(cr, uid, ids, context=context):
             branch_short_name = build.branch_id.name.replace(
                 'refs/heads/', '', 1).replace('refs/pull/', 'pull/', 1)
             t2d_path = os.path.join(build.repo_id.root(), 'travis2docker')
-            sys.argv = [
-                'travisfile2dockerfile', build.repo_id.name,
-                branch_short_name, '--root-path=' + t2d_path,
-            ]
+            repo_name = build.repo_id.name
+            if not (repo_name.startswith('https://') or
+                    repo_name.startswith('git@')):
+                repo_name = 'https://' + repo_name
+            sha = build.name
+            git_data = get_git_data(
+                repo_name, os.path.join(t2d_path, 'repo'), sha)
+            git_data['revision'] = branch_short_name
+            yml_content = git_data['content']
+            t2d_e = None
             try:
-                path_scripts = t2d()
-            except BaseException:  # TODO: Add custom exception to t2d
-                _logger.error(traceback.format_exc())
+                t2d_obj = Travis2Docker(
+                    yml_buffer=yml_content,
+                    work_path=os.path.join(t2d_path, 'script',
+                                           str(build.id) + "_" + sha[:7]),
+                    os_kwargs=git_data,
+                    copy_paths=[("~/.ssh", "$HOME/.ssh")],
+                )
+                path_scripts = t2d_obj.compute_dockerfile(
+                    skip_after_success=True)
+            except BaseException as t2d_e:
                 path_scripts = []
+                build._log('t2d error', t2d_e.message)
+                _logger.error('t2d build#%d: "%s"', build.id, t2d_e.message)
+                _logger.error(traceback.format_exc())
             for path_script in path_scripts:
                 df_content = open(os.path.join(
                     path_script, 'Dockerfile')).read()
@@ -312,10 +333,13 @@ class RunbotBuild(models.Model):
                     if build.id in to_be_skipped_ids:
                         to_be_skipped_ids.remove(build.id)
                     break
-        if to_be_skipped_ids:
-            _logger.info('Dockerfile without TESTS=1 env. '
-                         'Skipping builds %s', to_be_skipped_ids)
-            self.skip(cr, uid, to_be_skipped_ids, context=context)
+        for build in self.browse(cr, uid, to_be_skipped_ids, context=context):
+            build._log('Dockerfile without TESTS=1 env.', 'Skipping')
+            _logger.warning('Dockerfile without TESTS=1 env. '
+                            'Skipping build %d: %s %s',
+                            build.id, build.repo_id.name, build.branch_id.name,
+                            )
+            build.skip()
 
     def docker_rm_container(self):
         for build in self:
