@@ -86,10 +86,11 @@ class RunbotBuild(models.Model):
             if build.repo_id.docker_registry_server else ""
         image_name = registry_host + \
             git_obj.owner + '-' + git_obj.repo + ':' + branch + \
-            '_' + os.path.basename(build.dockerfile_path) + \
-            '_' + str(build.id)
+            '_' + os.path.basename(build.dockerfile_path) + '_'
         if branch_closest:
-            image_name += '_cached'
+            image_name += 'cached'
+        else:
+            image_name += str(build.id)
         return image_name.lower()
 
     def get_docker_container(self):
