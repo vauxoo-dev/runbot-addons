@@ -205,12 +205,13 @@ class RunbotBuild(models.Model):
                     if build.id in to_be_skipped_ids:
                         to_be_skipped_ids.remove(build.id)
                     break
-        if to_be_skipped_ids:
-            self._log(cr, uid, to_be_skipped_ids,
-                      'Dockerfile without TESTS=1 env.', 'Skipping')
+        for build in self.browse(cr, uid, to_be_skipped_ids, context=context):
+            build._log('Dockerfile without TESTS=1 env.', 'Skipping')
             _logger.warning('Dockerfile without TESTS=1 env. '
-                            'Skipping builds %s', to_be_skipped_ids)
-            self.skip(cr, uid, to_be_skipped_ids, context=context)
+                            'Skipping build %d: %s %s',
+                            build.id, build.repo_id.name, build.branch_id.name,
+                            )
+            build.skip()
 
     @custom_build
     def _local_cleanup(self, cr, uid, ids, context=None):
