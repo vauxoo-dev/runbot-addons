@@ -164,7 +164,7 @@ class RunbotBuild(models.Model):
     @custom_build
     def checkout(self, cr, uid, ids, context=None):
         """Save travis2docker output"""
-        to_be_skipped_ids = ids
+        to_be_skipped_ids = ids[:]
         for build in self.browse(cr, uid, ids, context=context):
             branch_short_name = build.branch_id.name.replace(
                 'refs/heads/', '', 1).replace('refs/pull/', 'pull/', 1)
