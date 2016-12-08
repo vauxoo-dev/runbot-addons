@@ -6,7 +6,6 @@
 import logging
 import os
 import time
-import sys
 
 import openerp
 from openerp import fields, models
@@ -16,17 +15,15 @@ from openerp.addons.runbot_build_instructions.models.runbot_build \
 from openerp.addons.runbot.runbot import (
     grep, rfind, run, _re_error, _re_warning)
 
+_logger = logging.getLogger(__name__)
+
 try:
     from travis2docker.git_run import GitRun
-except ImportError:
-    GitRun = None
-try:
-    from travis2docker.cli import main as t2d, get_git_data
+    from travis2docker.cli import get_git_data
     from travis2docker.travis2docker import Travis2Docker
-except ImportError:
-    t2d = None
+except ImportError as err:
+    _logger.debug(err)
 
-_logger = logging.getLogger(__name__)
 
 
 def custom_build(func):
@@ -177,11 +174,14 @@ class RunbotBuild(models.Model):
                     repo_name.startswith('git@')):
                 repo_name = 'https://' + repo_name
             sha = build.name
-            git_data = get_git_data(repo_name, os.path.join(t2d_path, 'repo'),
-                                    sha)
+            git_data = get_git_data(
+                repo_name, os.path.join(t2d_path, 'repo'), sha)
+            git_data['revision'] = branch_short_name
             yml_content = git_data['content']
-            # TODO: use sha and id to store build scripts
+            # TODO: Use sha and id to store build scripts
             # TODO: Add warning and base_10_test.txt log that if there are errores
+            # TODO: Re-use runbot repos
+            # TODO: T2D dockerfile image use a particular sha
             t2d_obj = Travis2Docker(
                 yml_buffer=yml_content,
                 work_path=os.path.join(t2d_path, 'script',
@@ -190,6 +190,8 @@ class RunbotBuild(models.Model):
                 copy_paths=[("~/.ssh", "$HOME/.ssh")],
             )
             path_scripts = t2d_obj.compute_dockerfile(skip_after_success=True)
+            # TODO: Use a unique image and container name
+            # TODO: Add warning if there are not scripts
             for path_script in path_scripts:
                 df_content = open(os.path.join(
                     path_script, 'Dockerfile')).read()
