@@ -26,12 +26,13 @@ class TestRunbotJobs(TransactionCase):
         self.repo = self.repo_obj.search([
             ('is_travis2docker_build', '=', True)], limit=1)
         self.repo_domain = [('repo_id', '=', self.repo.id)]
+        self.build = None
 
     def delete_build_path(self, build):
-        subprocess.check_output(['rm', '-rf', build.path()])
+        subprocess.check_output(['rm', '-rf', self.build.path()])
 
     def delete_image_cache(self, build):
-        cmd = ['docker', 'rmi', '-f', build.docker_image_cache]
+        cmd = ['docker', 'rmi', '-f', self.build.docker_image_cache]
         res = -1
         try:
             res = subprocess.check_output(cmd)
@@ -40,7 +41,7 @@ class TestRunbotJobs(TransactionCase):
         return res
 
     def delete_container(self, build):
-        cmd = ['docker', 'rm', '-f', build.get_docker_container()]
+        cmd = ['docker', 'rm', '-f', self.build.get_docker_container()]
         res = -1
         try:
             res = subprocess.check_output(cmd)
@@ -54,8 +55,8 @@ class TestRunbotJobs(TransactionCase):
         _logger.info("Waiting change of current job: %s", current_job)
         for count in range(loops):
             self.repo.cron()
-            if build.job != current_job:
-                return build.job
+            if self.build.job != current_job:
+                return self.build.job
             time.sleep(timeout)
             if divmod(count + 1, 5)[1] == 0:
                 _logger.info("...")
@@ -100,77 +101,77 @@ class TestRunbotJobs(TransactionCase):
         if self.build.state == 'done' and self.build.result == 'skipped':
             # When the last commit of the repo is too old,
             # runbot will skip this build then we are forcing it
-            build.force()
+            self.build.force()
 
-        build.checkout()
-        self.delete_build_path(build)
+        self.build.checkout()
+        self.delete_build_path(self.build)
         self.assertEqual(
-            build.state, u'pending', "State should be pending")
+            self.build.state, u'pending', "State should be pending")
 
         self.repo.cron()
         self.assertEqual(
-            build.state, u'testing', "State should be testing")
+            self.build.state, u'testing', "State should be testing")
         images_result = subprocess.check_output(['docker', 'images'])
         _logger.info(images_result)
         containers_result = subprocess.check_output(['docker', 'ps'])
         _logger.info(containers_result)
-        if not build.is_pull_request:
+        if not self.build.is_pull_request:
             self.assertEqual(
-                build.job, u'job_10_test_base',
+                self.build.job, u'job_10_test_base',
                 "Job should be job_10_test_base")
-            new_current_job = self.wait_change_job(build.job, build)
+            new_current_job = self.wait_change_job(self.build.job, self.build)
             _logger.info(
-                open(os.path.join(build.path(), "logs",
+                open(os.path.join(self.build.path(), "logs",
                                   "job_10_test_base.txt")).read())
         else:
             self.assertTrue(
-                self.docker_registry_test(build),
+                self.docker_registry_test(self.build),
                 "Docker image don't found in registry to re-use in PR.",
             )
             new_current_job = u'job_20_test_all'
 
         self.assertEqual(
             new_current_job, u'job_20_test_all')
-        new_current_job = self.wait_change_job(new_current_job, build)
+        new_current_job = self.wait_change_job(new_current_job, self.build)
         self.assertEqual(
             new_current_job, u'job_30_run',
             "Job should be job_30_run, found %s" % new_current_job)
         _logger.info(open(
-            os.path.join(build.path(), "logs",
+            os.path.join(self.build.path(), "logs",
                          "job_20_test_all.txt")).read())
 
         self.assertEqual(
-            build.state, u'running',
+            self.build.state, u'running',
             "Job state should be running")
 
-        user_ids = self.connection_test(build, 36, 10)
+        user_ids = self.connection_test(self.build, 36, 10)
         _logger.info(open(
-            os.path.join(build.path(), "logs",
+            os.path.join(self.build.path(), "logs",
                          "job_30_run.txt")).read())
 
         self.assertEqual(
-            build.state, u'running',
+            self.build.state, u'running',
             "Job state should be running still")
         self.assertEqual(
             len(user_ids) >= 1, True, "Failed connection test")
 
         self.assertEqual(
-            build.result, u'ok', "Job result should be ok")
+            self.build.result, u'ok', "Job result should be ok")
         self.assertTrue(
-            self.exists_container(build.docker_container),
+            self.exists_container(self.build.docker_container),
             "Container dont't exists")
-        build.kill()
+        self.build.kill()
         self.assertEqual(
-            build.state, u'done', "Job state should be done")
+            self.build.state, u'done', "Job state should be done")
         self.assertFalse(
-            self.exists_container(build.docker_container),
+            self.exists_container(self.build.docker_container),
             "Container don't deleted")
-        if not build.is_pull_request:
+        if not self.build.is_pull_request:
             self.assertTrue(
-                self.docker_registry_test(build),
+                self.docker_registry_test(self.build),
                 "Docker image don't found in registry.",
             )
-            self.delete_image_cache(build)
+            self.delete_image_cache(self.build)
         # Runbot original module use cr.commit :(
         # This explicit commit help us to avoid believe
         # that we will have a rollback of the data
@@ -192,7 +193,7 @@ class TestRunbotJobs(TransactionCase):
             "vauxoo-dev-runbot_branch_remote_name_grp_feature2/tags/list",
         ]
         tag_list_output = subprocess.check_output(cmd)
-        tag_build = build.docker_image_cache.split(':')[-1]
+        tag_build = self.build.docker_image_cache.split(':')[-1]
         return tag_build in tag_list_output
 
     def connection_test(self, build, attempts=1, delay=0):
