@@ -21,7 +21,8 @@ try:
 except ImportError:
     GitRun = None
 try:
-    from travis2docker.cli import main as t2d
+    from travis2docker.cli import main as t2d, get_git_data
+    from travis2docker.travis2docker import Travis2Docker
 except ImportError:
     t2d = None
 
@@ -175,14 +176,20 @@ class RunbotBuild(models.Model):
             if not (repo_name.startswith('https://') or
                     repo_name.startswith('git@')):
                 repo_name = 'https://' + repo_name
-            sys.argv = [
-                'travisfile2dockerfile', repo_name,
-                branch_short_name, '--root-path=' + t2d_path,
-            ]
-            try:
-                path_scripts = t2d()
-            except BaseException:  # TODO: Add custom exception to t2d
-                path_scripts = []
+            sha = build.name
+            git_data = get_git_data(repo_name, os.path.join(t2d_path, 'repo'),
+                                    sha)
+            yml_content = git_data['content']
+            # TODO: use sha and id to store build scripts
+            # TODO: Add warning and base_10_test.txt log that if there are errores
+            t2d_obj = Travis2Docker(
+                yml_buffer=yml_content,
+                work_path=os.path.join(t2d_path, 'script',
+                                       str(build.id) + "_" + sha[:7]),
+                os_kwargs=git_data,
+                copy_paths=[("~/.ssh", "$HOME/.ssh")],
+            )
+            path_scripts = t2d_obj.compute_dockerfile(skip_after_success=True)
             for path_script in path_scripts:
                 df_content = open(os.path.join(
                     path_script, 'Dockerfile')).read()
