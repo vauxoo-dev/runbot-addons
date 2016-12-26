@@ -53,6 +53,8 @@ def custom_build(func):
 class RunbotBuild(models.Model):
     _inherit = 'runbot.build'
 
+    SKIP_WORDS = ['[ci skip]', '[skip ci]']
+
     @api.depends('state')
     def _get_introspection(self):
         for build in self:
@@ -135,10 +137,9 @@ class RunbotBuild(models.Model):
         if not build.branch_id.repo_id.is_travis2docker_build:
             return super(RunbotBuild, self).job_10_test_base(
                 cr, uid, build, lock_path, log_path)
-        if not build.docker_image or not build.dockerfile_path \
-                or build.result == 'skipped':
-            _logger.info('docker build skipping job_10_test_base')
-            return MAGIC_PID_RUN_NEXT_JOB
+        skip = build.skip_check(cr, uid, build, context={})
+        if skip:
+            return skip
         if not build.docker_cache:
             cmd = build.get_docker_build_cmd()
             return self.spawn(cmd, lock_path, log_path)
@@ -202,11 +203,9 @@ class RunbotBuild(models.Model):
         if not build.branch_id.repo_id.is_travis2docker_build:
             return super(RunbotBuild, self).job_30_run(
                 cr, uid, build, lock_path, log_path)
-        if not build.docker_image or not build.dockerfile_path \
-                or build.result == 'skipped':
-            _logger.info('docker build skipping job_30_run')
-            return MAGIC_PID_RUN_NEXT_JOB
-
+        skip = build.skip_check(cr, uid, build, context={})
+        if skip:
+            return skip
         # Start copy and paste from original method (fix flake8)
         log_all = build.path('logs', 'job_20_test_all.txt')
         log_time = time.localtime(os.path.getmtime(log_all))
@@ -355,3 +354,11 @@ class RunbotBuild(models.Model):
             if build.docker_container:
                 build.docker_rm_container()
                 build.docker_rm_image()
+
+    def skip_check(self, cr, uid, build, context=None):
+        subject = build.subject.lower()
+        ci_skip = any([word in subject for word in self.SKIP_WORDS])
+        if (not (build.docker_image or build.dockerfile_path) or
+                build.result == 'skipped' or ci_skip):
+            _logger.info('docker build skipping job_10_test_base')
+            return MAGIC_PID_RUN_NEXT_JOB
