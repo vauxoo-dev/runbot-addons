@@ -5,13 +5,14 @@
 
 import logging
 import os
-import requests
 import subprocess
 import time
 import traceback
 
+import requests
+
 import openerp
-from openerp import fields, models, api
+from openerp import api, fields, models
 from openerp.addons.runbot.runbot import (_re_error, _re_warning, grep, rfind,
                                           run)
 from openerp.addons.runbot_build_instructions.runbot_build import \
@@ -52,7 +53,6 @@ def custom_build(func):
 
 class RunbotBuild(models.Model):
     _inherit = 'runbot.build'
-
     SKIP_WORDS = ['[ci skip]', '[skip ci]']
 
     @api.depends('state')
