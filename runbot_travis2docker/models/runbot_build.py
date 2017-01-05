@@ -356,8 +356,10 @@ class RunbotBuild(models.Model):
                 build.docker_rm_image()
 
     def skip_check(self, build):
-        subject = build and build.subject and build.subject.lower() or ''
-        ci_skip = any([word in subject for word in self.SKIP_WORDS])
+        ci_skip = False
+        if build.subject:
+            subject = build.subject.lower() or ''
+            ci_skip = any([word in subject for word in self.SKIP_WORDS])
         if (not (build.docker_image or build.dockerfile_path) or
                 build.result == 'skipped' or ci_skip):
             _logger.info('docker build skipping job_10_test_base')
