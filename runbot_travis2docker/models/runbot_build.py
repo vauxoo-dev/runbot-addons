@@ -137,7 +137,7 @@ class RunbotBuild(models.Model):
         if not build.branch_id.repo_id.is_travis2docker_build:
             return super(RunbotBuild, self).job_10_test_base(
                 cr, uid, build, lock_path, log_path)
-        skip = build.skip_check(cr, uid, build, context={})
+        skip = self.skip_check(build)
         if skip:
             return skip
         if not build.docker_cache:
@@ -203,7 +203,7 @@ class RunbotBuild(models.Model):
         if not build.branch_id.repo_id.is_travis2docker_build:
             return super(RunbotBuild, self).job_30_run(
                 cr, uid, build, lock_path, log_path)
-        skip = build.skip_check(cr, uid, build, context={})
+        skip = self.skip_check(build)
         if skip:
             return skip
         # Start copy and paste from original method (fix flake8)
@@ -355,7 +355,7 @@ class RunbotBuild(models.Model):
                 build.docker_rm_container()
                 build.docker_rm_image()
 
-    def skip_check(self, cr, uid, build, context=None):
+    def skip_check(self, build):
         subject = build.subject.lower()
         ci_skip = any([word in subject for word in self.SKIP_WORDS])
         if (not (build.docker_image or build.dockerfile_path) or
