@@ -26,7 +26,7 @@ class TestRunbotJobs(TransactionCase):
 
         self.repo = self.repo_obj.search([
             ('is_travis2docker_build', '=', True)], limit=1)
-        self.repo_2 = self.ref('runbot_travis2docker.runbot_repo_demo2')
+        self.repo_2 = self.env.ref('runbot_travis2docker.runbot_repo_demo2')
         self.repo_domain = [('repo_id', '=', self.repo.id)]
         self.build = None
 
