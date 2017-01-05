@@ -218,7 +218,10 @@ class TestRunbotJobs(TransactionCase):
                                            limit=1)
         self.assertEqual(len(self.build) == 0, False, "Build not found")
 
-        self.build.force()
+        if self.build.state == 'done' and self.build.result == 'skipped':
+            # When the last commit of the repo is too old,
+            # runbot will skip this build then we are forcing it
+            self.build.force()
 
         self.assertEqual(
             self.build.state, u'skipped', "State should be skipped")

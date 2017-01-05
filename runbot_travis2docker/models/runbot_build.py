@@ -190,10 +190,9 @@ class RunbotBuild(models.Model):
         if not build.branch_id.repo_id.is_travis2docker_build:
             return super(RunbotBuild, self).job_20_test_all(
                 cr, uid, build, lock_path, log_path)
-        if not build.docker_image or not build.dockerfile_path \
-                or build.result == 'skipped':
-            _logger.info('docker build skipping job_20_test_all')
-            return MAGIC_PID_RUN_NEXT_JOB
+        skip = self.skip_check(build)
+        if skip:
+            return skip
         build.docker_rm_container()
         cmd = build.get_docker_run_cmd()
         return self.spawn(cmd, lock_path, log_path)
@@ -362,5 +361,5 @@ class RunbotBuild(models.Model):
             ci_skip = any([word in subject for word in self.SKIP_WORDS])
         if (not (build.docker_image or build.dockerfile_path) or
                 build.result == 'skipped' or ci_skip):
-            _logger.info('docker build skipping job_10_test_base')
+            _logger.info('docker build skipping job')
             return MAGIC_PID_RUN_NEXT_JOB
