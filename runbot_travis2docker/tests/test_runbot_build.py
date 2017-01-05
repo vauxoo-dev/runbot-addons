@@ -208,11 +208,12 @@ class TestRunbotJobs(TransactionCase):
         branch = self.branch_obj.create({
             'repo_id': self.repo_2.id,
             'name': 'refs/heads/fast-travis-oca',
-            'subject': '[CI SKIP] TEST SUBJECT'
         })
         self.assertEqual(len(branch), 1, "Branch not found")
         self.build_obj.search([('branch_id', '=', branch.id)]).unlink()
-        self.build_obj.create({'branch_id': branch.id, 'name': 'HEAD'})
+        self.build_obj.create({'branch_id': branch.id,
+                               'subject': '[CI SKIP] TEST SUBJECT',
+                               'name': 'HEAD'})
         # runbot module has a inherit in create method
         # but a "return id" is missed. Then we need to search it.
         # https://github.com/odoo/odoo-extra/blob/038fd3e/runbot/runbot.py#L599
