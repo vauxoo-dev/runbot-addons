@@ -9,5 +9,10 @@
             <field name="docker_registry_server">localhost:5000</field>
         </record>
 
+        <record id="runbot_repo_demo2" model="runbot.repo">
+            <field name="name">https://github.com/vauxoo-dev/fast-travis-test.git</field>
+            <field name="is_travis2docker_build" eval="True"/>
+        </record>
+
     </data>
 </openerp>

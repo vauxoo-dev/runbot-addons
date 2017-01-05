@@ -23,8 +23,10 @@ class TestRunbotJobs(TransactionCase):
         self.build_obj = self.env['runbot.build']
         self.repo_obj = self.env['runbot.repo']
         self.branch_obj = self.env['runbot.branch']
+
         self.repo = self.repo_obj.search([
             ('is_travis2docker_build', '=', True)], limit=1)
+        self.repo_2 = self.ref('runbot_travis2docker.runbot_repo_demo2')
         self.repo_domain = [('repo_id', '=', self.repo.id)]
         self.build = None
 
@@ -201,10 +203,10 @@ class TestRunbotJobs(TransactionCase):
         # 'Create build and run all jobs'
         self.assertEqual(len(self.repo), 1, "Repo not found")
         _logger.info("Repo update to get branches")
-        self.repo.update()
+        self.repo_2.update()
 
         branch = self.branch_obj.create({
-            'repo_id': self.repo.id,
+            'repo_id': self.repo_2.id,
             'name': 'refs/heads/fast-travis-oca',
             'subject': '[CI SKIP] TEST SUBJECT'
         })
