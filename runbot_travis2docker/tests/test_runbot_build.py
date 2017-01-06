@@ -203,11 +203,11 @@ class TestRunbotJobs(TransactionCase):
         # 'Create build and run all jobs'
         self.assertEqual(len(self.repo), 1, "Repo not found")
         _logger.info("Repo update to get branches")
-        self.repo_2.update()
+        self.repo.update()
         self.repo.killall()
 
         branch = self.branch_obj.create({
-            'repo_id': self.repo_2.id,
+            'repo_id': self.repo.id,
             'name': 'refs/heads/fast-travis-oca',
         })
         self.assertEqual(len(branch), 1, "Branch not found")
