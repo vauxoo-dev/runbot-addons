@@ -204,6 +204,7 @@ class TestRunbotJobs(TransactionCase):
         self.assertEqual(len(self.repo), 1, "Repo not found")
         _logger.info("Repo update to get branches")
         self.repo_2.update()
+        self.repo.killall()
 
         branch = self.branch_obj.create({
             'repo_id': self.repo_2.id,
@@ -226,12 +227,15 @@ class TestRunbotJobs(TransactionCase):
             # runbot will skip this build then we are forcing it
             self.build.force()
 
+        self.build.checkout()
+        self.delete_build_path(self.build)
         self.assertEqual(
             self.build.state, u'skipped', "State should be skipped")
 
         self.build.kill()
         self.assertEqual(
             self.build.state, u'done', "Job state should be done")
+
 
     def connection_test(self, build, attempts=1, delay=0):
         username = "admin"
