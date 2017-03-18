@@ -364,12 +364,15 @@ class RunbotBuild(models.Model):
             "/repos/:owner/:repo/commits/%s" % build.name)
         if not response:
             return
-        url = "https://github.com/%(login)s.keys" % response['author']
-        try:
-            stream = requests.get(url, stream=True)
-            return stream.text
-        except requests.RequestException:
-            _logger.debug("Error to fetch %s", url)
+        keys = ""
+        for own_key in ['author', 'committer']:
+            try:
+                url = "https://github.com/%(login)s.keys" % response[own_key]
+                stream = requests.get(url, stream=True)
+                keys += '\n' + stream.txt
+            except (TypeError, KeyError, requests.RequestException):
+                _logger.debug("Error fetching %s", own_key)
+        return keys
 
     def schedule(self, cr, uid, ids, context=None):
         res = super(RunbotBuild, self).schedule(cr, uid, ids, context=context)
