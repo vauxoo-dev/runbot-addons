@@ -76,6 +76,9 @@ class RunbotBuild(models.Model):
     branch_short_name = fields.Char(help='Branch short name e.g. pull/1, 8.0')
     introspection = fields.Text(help='Introspection', store=True,
                                 compute='_get_introspection')
+    docker_executed_commands = fields.Boolean(
+        help='True: Executed "docker exec CONTAINER_BUILD custom_commands"',
+        readonly=True)
 
     def get_docker_image(self, branch_closest=None):
         self.ensure_one()
@@ -355,3 +358,39 @@ class RunbotBuild(models.Model):
             if build.docker_container:
                 build.docker_rm_container()
                 build.docker_rm_image()
+
+    def get_ssh_keys(self, cr, uid, build, context=None):
+        response = build.repo_id.github(
+            "/repos/:owner/:repo/commits/%s" % build.name)
+        if not response:
+            return
+        url = "https://github.com/%(login)s.keys" % response['author']
+        try:
+            stream = requests.get(url, stream=True)
+            return stream.text
+        except requests.RequestException:
+            _logger.debug("Error to fetch %s", url)
+
+    def schedule(self, cr, uid, ids, context=None):
+        res = super(RunbotBuild, self).schedule(cr, uid, ids, context=context)
+        for build in self.browse(cr, uid, ids, context=context):
+            if not all([build.state == 'running', build.job == 'job_30_run',
+                        not build.docker_executed_commands]):
+                continue
+            build.write({'docker_executed_commands': True})
+            cmd = ["docker", "exec", "--user=root", build.docker_container,
+                   "/etc/init.d/ssh", "start"]
+            subprocess.call(cmd)
+            ssh_keys = self.get_ssh_keys(cr, uid, build, context=context) or ''
+            f_extra_keys = os.path.expanduser('~/.ssh/runbot_authorized_keys')
+            if os.path.isfile(f_extra_keys):
+                with open(f_extra_keys) as fobj_extra_keys:
+                    ssh_keys += "\n" + fobj_extra_keys.read()
+            ssh_keys = ssh_keys.strip(" \n")
+            if not ssh_keys:
+                continue
+            cmd = ["docker", "exec", "--user=odoo", build.docker_container,
+                   "bash", "-c", "echo '%(keys)s' | tee -a '%(dir)s'" % dict(
+                       keys=ssh_keys, dir="/home/odoo/.ssh/authorized_keys")]
+            subprocess.call(cmd)
+        return res
