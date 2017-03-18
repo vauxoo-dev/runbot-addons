@@ -367,7 +367,7 @@ class RunbotBuild(models.Model):
         keys = ""
         for own_key in ['author', 'committer']:
             try:
-                url = "https://github.com/%(login)s.keys" % response[own_key]['login']
+                url = "https://github.com/%(login)s.keys" % response[own_key]
                 stream = requests.get(url, stream=True)
                 keys += '\n' + stream.txt
             except (TypeError, KeyError, requests.RequestException):
