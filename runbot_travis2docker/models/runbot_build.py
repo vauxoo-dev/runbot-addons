@@ -371,7 +371,7 @@ class RunbotBuild(models.Model):
                     ssh_rsa = build.repo_id.github("/users/%s/keys" %
                                                    response['user_id'])
                     for rsa in ssh_rsa:
-                        keys += rsa['key']
+                        keys += '\n' + rsa['key']
                 else:
                     url = ("https://github.com/%(login)s.keys" %
                            response[own_key])

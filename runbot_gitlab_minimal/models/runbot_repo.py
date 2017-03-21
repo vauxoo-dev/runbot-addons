@@ -197,7 +197,7 @@ class RunbotBuild(models.Model):
                 _logger.exception('gitlab API error %s', url)
 
 
-class RunbotBranclh(models.Model):
+class RunbotBranch(models.Model):
     _inherit = "runbot.branch"
 
     branch_url = fields.Char(compute='_get_branch_url')
