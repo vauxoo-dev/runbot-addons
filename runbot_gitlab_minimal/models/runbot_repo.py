@@ -10,6 +10,8 @@ import urllib
 import requests
 
 from openerp import models, fields, api
+from openerp.addons.runbot_travis2docker.models.runbot_build \
+    import RunbotBuild as BaseRunbotBuild
 
 _logger = logging.getLogger(__name__)
 
@@ -22,6 +24,7 @@ def _get_url(url, base):
         url = url.replace(':repo', match_object.group(3))
         url = 'https://%s/api/v3%s' % (match_object.group(1), url)
         url = url.replace('/repos/', '/projects/')
+        url = url.replace('/commits/', '/repository/commits/')
         url = url.replace(project_name, urllib.quote(project_name, safe=''))
     return url
 
@@ -113,6 +116,13 @@ class RunbotRepo(models.Model):
                         json = json[0]
                         json['head'] = {'ref': json['target_branch']}
                         json['base'] = {'ref': json['source_branch']}
+                    if '/commits/' in url:
+                        url = _get_url('/users?search=%s' %
+                                       json['committer_email'], repo.base)
+                        response = session.get(url)
+                        response.raise_for_status()
+                        json['author'] = response.json()[0]['username']
+                        json['user_id'] = response.json()[0]['id']
                     return json
             except Exception:
                 if ignore_errors:
@@ -122,8 +132,23 @@ class RunbotRepo(models.Model):
                     raise
 
 
-class RunbotBuild(models.Model):
+class RunbotBuild(BaseRunbotBuild):
     _inherit = "runbot.build"
+
+    def get_ssh_keys(self, cr, uid, build, context=None):
+        response = build.repo_id.github(
+            "/repos/:owner/:repo/commits/%s" % build.name)
+        if not response:
+            return
+        try:
+            ssh_keys = ""
+            response = build.repo_id.github("/users/%s/keys" %
+                                            response['user_id'])
+            for key in response:
+                ssh_keys += key['key']
+            return ssh_keys
+        except requests.RequestException as excep:
+            _logger.exception("Error to fetch %s", excep)
 
     def github_status(self, cr, uid, ids, context=None):
         runbot_domain = self.pool['runbot.repo'].domain(cr, uid)
