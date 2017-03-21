@@ -133,8 +133,7 @@ class RunbotRepo(models.Model):
 class RunbotBuild(models.Model):
     _inherit = "runbot.build"
 
-    def github_status(self, cr, uid, ids, context=None):  \
-            # pylint: disable=missing-return
+    def github_status(self, cr, uid, ids, context=None):
         runbot_domain = self.pool['runbot.repo'].domain(cr, uid)
         for build in self.browse(cr, uid, ids, context=context):
             is_merge_request = build.branch_id.branch_name.isdigit()
@@ -198,14 +197,13 @@ class RunbotBuild(models.Model):
                 _logger.exception('gitlab API error %s', url)
 
 
-class RunbotBranch(models.Model):
+class RunbotBranclh(models.Model):
     _inherit = "runbot.branch"
 
-    branch_url = fields.Char(compute='_get_branch_url')  \
-        # pylint: disable=method-compute
+    branch_url = fields.Char(compute='_get_branch_url')
 
     @api.multi
-    def _get_branch_url(self):  # pylint: disable=missing-return
+    def _get_branch_url(self):
         _branch_urls = super(RunbotBranch, self)._get_branch_url(None, None)
         for branch in self:
             if not branch.repo_id.uses_gitlab:
