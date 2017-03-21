@@ -367,8 +367,7 @@ class RunbotBuild(models.Model):
         keys = ""
         for own_key in ['author', 'committer']:
             try:
-                if (hasattr(build.repo_id, 'uses_gitlab') and
-                        build.repo_id.uses_gitlab):
+                if getattr(build.repo_id, 'uses_gitlab', False):
                     ssh_rsa = build.repo_id.github("/users/%s/keys" %
                                                    response['user_id'])
                     for rsa in ssh_rsa:
