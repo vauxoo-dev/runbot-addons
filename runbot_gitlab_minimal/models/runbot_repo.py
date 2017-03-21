@@ -150,7 +150,8 @@ class RunbotBuild(BaseRunbotBuild):
         except requests.RequestException as excep:
             _logger.exception("Error to fetch %s", excep)
 
-    def github_status(self, cr, uid, ids, context=None):
+    def github_status(self, cr, uid, ids, context=None):  \
+            # pylint: disable=missing-return
         runbot_domain = self.pool['runbot.repo'].domain(cr, uid)
         for build in self.browse(cr, uid, ids, context=context):
             is_merge_request = build.branch_id.branch_name.isdigit()
@@ -158,8 +159,8 @@ class RunbotBuild(BaseRunbotBuild):
             _url = _get_url('/projects/:owner/:repo/statuses/%s' % build.name,
                             build.repo_id.base)
             if not build.repo_id.uses_gitlab:
-                super(RunbotBuild, self).github_status(cr, uid, ids,
-                                                       context=context)
+                return super(RunbotBuild, self).github_status(cr, uid, ids,
+                                                              context=context)
                 continue
             if not build.repo_id.token:
                 continue
@@ -217,10 +218,11 @@ class RunbotBuild(BaseRunbotBuild):
 class RunbotBranch(models.Model):
     _inherit = "runbot.branch"
 
-    branch_url = fields.Char(compute='_get_branch_url')
+    branch_url = fields.Char(compute='_get_branch_url')  \
+        # pylint: disable=method-compute
 
     @api.multi
-    def _get_branch_url(self):
+    def _get_branch_url(self):  # pylint: disable=missing-return
         _branch_urls = super(RunbotBranch, self)._get_branch_url(None, None)
         for branch in self:
             if not branch.repo_id.uses_gitlab:
