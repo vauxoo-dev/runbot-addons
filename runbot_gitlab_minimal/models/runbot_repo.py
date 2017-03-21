@@ -114,13 +114,17 @@ class RunbotRepo(models.Model):
                         json = json[0]
                         json['head'] = {'ref': json['target_branch']}
                         json['base'] = {'ref': json['source_branch']}
-                    if '/commits/' in url:
+                    if '/commits/' in url and json['committer_email']:
                         url = _get_url('/users?search=%s' %
                                        json['committer_email'], repo.base)
                         response = session.get(url)
                         response.raise_for_status()
-                        json['author'] = response.json()[0]['username']
-                        json['user_id'] = response.json()[0]['id']
+                        data = response.json()
+                        if len(data) == 1:
+                            data = data[0]
+                            json['author'] = data['username']
+                            json['commiter'] = json['committer_email']
+                            json['user_id'] = data['id']
                     return json
             except Exception:
                 if ignore_errors:
@@ -141,8 +145,8 @@ class RunbotBuild(models.Model):
             _url = _get_url('/projects/:owner/:repo/statuses/%s' % build.name,
                             build.repo_id.base)
             if not build.repo_id.uses_gitlab:
-                return super(RunbotBuild, self).github_status(cr, uid, ids,
-                                                              context=context)
+                super(RunbotBuild, self).github_status(cr, uid, ids,
+                                                       context=context)
                 continue
             if not build.repo_id.token:
                 continue
