@@ -10,8 +10,6 @@ import urllib
 import requests
 
 from openerp import models, fields, api
-from openerp.addons.runbot_travis2docker.models.runbot_build \
-    import RunbotBuild as BaseRunbotBuild
 
 _logger = logging.getLogger(__name__)
 
@@ -132,23 +130,8 @@ class RunbotRepo(models.Model):
                     raise
 
 
-class RunbotBuild(BaseRunbotBuild):
+class RunbotBuild(models.Model):
     _inherit = "runbot.build"
-
-    def get_ssh_keys(self, cr, uid, build, context=None):
-        response = build.repo_id.github(
-            "/repos/:owner/:repo/commits/%s" % build.name)
-        if not response:
-            return
-        try:
-            ssh_keys = ""
-            response = build.repo_id.github("/users/%s/keys" %
-                                            response['user_id'])
-            for key in response:
-                ssh_keys += key['key']
-            return ssh_keys
-        except requests.RequestException as excep:
-            _logger.exception("Error to fetch %s", excep)
 
     def github_status(self, cr, uid, ids, context=None):  \
             # pylint: disable=missing-return
