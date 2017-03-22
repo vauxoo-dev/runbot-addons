@@ -367,16 +367,9 @@ class RunbotBuild(models.Model):
         keys = ""
         for own_key in ['author', 'committer']:
             try:
-                if getattr(build.repo_id, 'uses_gitlab', False):
-                    ssh_rsa = build.repo_id.github("/users/%s/keys" %
-                                                   response['user_id'])
-                    for rsa in ssh_rsa:
-                        keys += '\n' + rsa['key']
-                else:
-                    url = ("https://github.com/%(login)s.keys" %
-                           response[own_key])
-                    stream = requests.get(url, stream=True)
-                    keys += '\n' + stream.text
+                ssh_rsa = build.repo_id.github('/users/%(login)s/keys' %
+                                               response[own_key])
+                keys += '\n'.join(rsa['key'] for rsa in ssh_rsa)
             except (TypeError, KeyError, requests.RequestException):
                 _logger.debug("Error fetching %s", own_key)
         return keys

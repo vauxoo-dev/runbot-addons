@@ -17,13 +17,18 @@ _logger = logging.getLogger(__name__)
 def _get_url(url, base):
     match_object = re.search('([^/]+)/([^/]+)/([^/.]+(.git)?)', base)
     if match_object:
+        prefix = ('https://%s/api/v3%s'
+                  if not url.endswith('/keys') else 'https://%s%s')
         project_name = (match_object.group(2) + '/' + match_object.group(3))
         url = url.replace(':owner', match_object.group(2))
         url = url.replace(':repo', match_object.group(3))
-        url = 'https://%s/api/v3%s' % (match_object.group(1), url)
+        url = prefix % (match_object.group(1), url)
         url = url.replace('/repos/', '/projects/')
         url = url.replace('/commits/', '/repository/commits/')
         url = url.replace(project_name, urllib.quote(project_name, safe=''))
+        if url.endswith('/keys'):
+            url = url.replace('users/', '').replace('/keys', '')
+            url = url + '.keys'
     return url
 
 
@@ -94,6 +99,7 @@ class RunbotRepo(models.Model):
         """
         for repo in self.browse(cr, uid, ids, context=context):
             is_url_merge = False
+            is_url_keys = False
             if not repo.token:
                 continue
             try:
@@ -103,28 +109,35 @@ class RunbotRepo(models.Model):
                         urls = url.split('/pulls/')
                         url = urls[0] + '/merge_requests?iid=' + urls[1]
                         is_url_merge = True
+                    is_url_keys = url.endswith('.keys')
                     session = _get_session(repo.token)
                     if payload:
                         response = session.post(url, data=payload)
                     else:
                         response = session.get(url)
                     response.raise_for_status()
-                    json = response.json()
+                    json = (response.json() if not is_url_keys
+                            else response._content)
                     if is_url_merge:
                         json = json[0]
                         json['head'] = {'ref': json['target_branch']}
                         json['base'] = {'ref': json['source_branch']}
-                    if '/commits/' in url and json['committer_email']:
-                        url = _get_url('/users?search=%s' %
-                                       json['committer_email'], repo.base)
-                        response = session.get(url)
-                        response.raise_for_status()
-                        data = response.json()
-                        if len(data) == 1:
-                            data = data[0]
-                            json['author'] = data['username']
-                            json['commiter'] = json['committer_email']
-                            json['user_id'] = data['id']
+                    if '/commits/' in url:
+                        for own_key in ['author', 'committer']:
+                            key_email = '%s_email' % own_key
+                            if json[key_email]:
+                                url = _get_url('/users?search=%s' %
+                                               json[key_email],
+                                               repo.base)
+                                response = session.get(url)
+                                response.raise_for_status()
+                                data = response.json()
+                                if len(data) == 1:
+                                    data = data[0]
+                                    json[own_key] = {'login': data['username']}
+                    if is_url_keys:
+                        json = [{'key': ssh_rsa} for ssh_rsa
+                                in json.split('\n')]
                     return json
             except Exception:
                 if ignore_errors:
