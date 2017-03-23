@@ -378,22 +378,21 @@ class RunbotBuild(models.Model):
         res = super(RunbotBuild, self).schedule(cr, uid, ids, context=context)
         for build in self.browse(cr, uid, ids, context=context):
             if not all([build.state == 'running', build.job == 'job_30_run',
-                        not build.docker_executed_commands]):
+                        not build.docker_executed_commands,
+                        build.repo_id.is_travis2docker_build]):
                 continue
             build.write({'docker_executed_commands': True})
-            cmd = ["docker", "exec", "--user=root", build.docker_container,
-                   "/etc/init.d/ssh", "start"]
-            subprocess.call(cmd)
+            run(['docker', 'exec', '-d', '--user', 'root',
+                 build.docker_container, '/etc/init.d/ssh', 'start'])
             ssh_keys = self.get_ssh_keys(cr, uid, build, context=context) or ''
             f_extra_keys = os.path.expanduser('~/.ssh/runbot_authorized_keys')
             if os.path.isfile(f_extra_keys):
                 with open(f_extra_keys) as fobj_extra_keys:
                     ssh_keys += "\n" + fobj_extra_keys.read()
             ssh_keys = ssh_keys.strip(" \n")
-            if not ssh_keys:
-                continue
-            cmd = ["docker", "exec", "--user=odoo", build.docker_container,
-                   "bash", "-c", "echo '%(keys)s' | tee -a '%(dir)s'" % dict(
-                       keys=ssh_keys, dir="/home/odoo/.ssh/authorized_keys")]
-            subprocess.call(cmd)
+            if ssh_keys:
+                run(['docker', 'exec', '-d', '--user', 'odoo',
+                     build.docker_container,
+                     "bash", "-c", "echo '%(keys)s' | tee -a '%(dir)s'" % dict(
+                        keys=ssh_keys, dir="/home/odoo/.ssh/authorized_keys")])
         return res
