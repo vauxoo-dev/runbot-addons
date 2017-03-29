@@ -200,6 +200,14 @@ class RunbotBuild(models.Model):
         cmd = build.get_docker_run_cmd()
         return self.spawn(cmd, lock_path, log_path)
 
+    def job_21_coverage(self, cr, uid, build, lock_path, log_path):
+        if (not build.branch_id.repo_id.is_travis2docker_build and
+                hasattr(super(RunbotBuild, self), 'job_21_coverage')):
+            return super(RunbotBuild, self).job_21_coverage(
+                cr, uid, build, lock_path, log_path)
+        _logger.info('docker build skipping job_21_coverage')
+        return MAGIC_PID_RUN_NEXT_JOB
+
     def job_30_run(self, cr, uid, build, lock_path, log_path):
         'Run docker container with odoo server started'
         if not build.branch_id.repo_id.is_travis2docker_build:
