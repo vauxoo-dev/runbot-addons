@@ -386,7 +386,15 @@ class RunbotBuild(models.Model):
 
     @staticmethod
     def open_url(port):
+        """Open url instance in order to generate routing map and static files
+        early.
+         - We need a sleep to wait a full starting of odoo instance
+         - We need to open 2 times the url in order to generate:
+             1. Routing map
+             2. GET / HTTP
+        """
         url = "http://localhost:%(port)s" % dict(port=port)
+        time.sleep(20)
         try:
             urllib2.urlopen(url)
             urllib2.urlopen(url)
