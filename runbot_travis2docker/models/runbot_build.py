@@ -385,7 +385,7 @@ class RunbotBuild(models.Model):
         return keys
 
     @staticmethod
-    def open_url(port):
+    def _open_url(port):
         """Open url instance in order to generate routing map and static files
         early.
          - We need a sleep to wait a full starting of odoo instance
@@ -424,7 +424,7 @@ class RunbotBuild(models.Model):
                      "bash", "-c", "echo '%(keys)s' | tee -a '%(dir)s'" % dict(
                         keys=ssh_keys, dir="/home/odoo/.ssh/authorized_keys")])
             if current_host == build.host:
-                urlopen_t = threading.Thread(target=RunbotBuild.open_url,
+                urlopen_t = threading.Thread(target=RunbotBuild._open_url,
                                              args=(build.port,))
                 urlopen_t.start()
         return res
