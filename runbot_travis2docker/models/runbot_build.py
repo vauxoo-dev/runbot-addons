@@ -407,7 +407,7 @@ class RunbotBuild(models.Model):
                      "bash", "-c", "echo '%(keys)s' | tee -a '%(dir)s'" % dict(
                         keys=ssh_keys, dir="/home/odoo/.ssh/authorized_keys")])
             if current_host == build.host:
-                url = "http://localhost:%(port)s" % build.port
+                url = "http://localhost:%(port)s" % dict(port=build.port)
                 urlopen_t = threading.Thread(target=urllib2.urlopen, args=(url,))
                 urlopen_t.start()
         return res
