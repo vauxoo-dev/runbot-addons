@@ -15,7 +15,7 @@ import urllib2
 import openerp
 from openerp import fields, models, api
 from openerp.addons.runbot.runbot import (_re_error, _re_warning, grep, rfind,
-                                          run)
+                                          run, fqdn)
 from openerp.addons.runbot_build_instructions.runbot_build import \
     MAGIC_PID_RUN_NEXT_JOB
 
@@ -386,6 +386,7 @@ class RunbotBuild(models.Model):
 
     def schedule(self, cr, uid, ids, context=None):
         res = super(RunbotBuild, self).schedule(cr, uid, ids, context=context)
+        current_host = fqdn()
         for build in self.browse(cr, uid, ids, context=context):
             if not all([build.state == 'running', build.job == 'job_30_run',
                         not build.docker_executed_commands,
@@ -405,8 +406,8 @@ class RunbotBuild(models.Model):
                      build.docker_container,
                      "bash", "-c", "echo '%(keys)s' | tee -a '%(dir)s'" % dict(
                         keys=ssh_keys, dir="/home/odoo/.ssh/authorized_keys")])
-            url = build.branch_id._get_branch_quickconnect_url(
-                build.domain, build.dest)[build.branch_id.id]
-            urlopen_t = threading.Thread(target=urllib2.urlopen, args=(url,))
-            urlopen_t.start()
+            if current_host == build.host:
+                url = "http://localhost:%(port)s" % build.port
+                urlopen_t = threading.Thread(target=urllib2.urlopen, args=(url,))
+                urlopen_t.start()
         return res
