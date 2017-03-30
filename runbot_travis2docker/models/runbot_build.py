@@ -80,7 +80,7 @@ class RunbotBuild(models.Model):
                                 compute='_get_introspection')
     docker_executed_commands = fields.Boolean(
         help='True: Executed "docker exec CONTAINER_BUILD custom_commands"',
-        readonly=True)
+        readonly=True, copy=False)
 
     def get_docker_image(self, branch_closest=None):
         self.ensure_one()
