@@ -15,7 +15,7 @@ import urllib2
 import openerp
 from openerp import fields, models, api
 from openerp.addons.runbot.runbot import (_re_error, _re_warning, grep, rfind,
-                                          run)
+                                          run, fqdn)
 from openerp.addons.runbot_build_instructions.runbot_build import \
     MAGIC_PID_RUN_NEXT_JOB
 
@@ -384,8 +384,26 @@ class RunbotBuild(models.Model):
                 _logger.debug("Error fetching %s", own_key)
         return keys
 
+    @staticmethod
+    def _open_url(port):
+        """Open url instance in order to generate routing map and static files
+        early.
+         - We need a sleep to wait a full starting of odoo instance
+         - We need to open 2 times the url in order to generate:
+             1. Routing map
+             2. GET / HTTP
+        """
+        url = "http://localhost:%(port)s" % dict(port=port)
+        time.sleep(20)
+        try:
+            urllib2.urlopen(url)
+            urllib2.urlopen(url)
+        except urllib2.URLError:
+            _logger.debug("Error opening instance %s", url)
+
     def schedule(self, cr, uid, ids, context=None):
         res = super(RunbotBuild, self).schedule(cr, uid, ids, context=context)
+        current_host = fqdn()
         for build in self.browse(cr, uid, ids, context=context):
             if not all([build.state == 'running', build.job == 'job_30_run',
                         not build.docker_executed_commands,
@@ -405,8 +423,8 @@ class RunbotBuild(models.Model):
                      build.docker_container,
                      "bash", "-c", "echo '%(keys)s' | tee -a '%(dir)s'" % dict(
                         keys=ssh_keys, dir="/home/odoo/.ssh/authorized_keys")])
-            url = build.branch_id._get_branch_quickconnect_url(
-                build.domain, build.dest)[build.branch_id.id]
-            urlopen_t = threading.Thread(target=urllib2.urlopen, args=(url,))
-            urlopen_t.start()
+            if current_host == build.host:
+                urlopen_t = threading.Thread(target=RunbotBuild._open_url,
+                                             args=(build.port,))
+                urlopen_t.start()
         return res
