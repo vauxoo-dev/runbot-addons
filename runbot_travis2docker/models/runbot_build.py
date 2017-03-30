@@ -384,6 +384,15 @@ class RunbotBuild(models.Model):
                 _logger.debug("Error fetching %s", own_key)
         return keys
 
+    @staticmethod
+    def open_url(port):
+        url = "http://localhost:%(port)s" % dict(port=port)
+        try:
+            urllib2.urlopen(url)
+            urllib2.urlopen(url)
+        except urllib2.URLError:
+            _logger.debug("Error opening instance %s", url)
+
     def schedule(self, cr, uid, ids, context=None):
         res = super(RunbotBuild, self).schedule(cr, uid, ids, context=context)
         current_host = fqdn()
@@ -407,7 +416,7 @@ class RunbotBuild(models.Model):
                      "bash", "-c", "echo '%(keys)s' | tee -a '%(dir)s'" % dict(
                         keys=ssh_keys, dir="/home/odoo/.ssh/authorized_keys")])
             if current_host == build.host:
-                url = "http://localhost:%(port)s" % dict(port=build.port)
-                urlopen_t = threading.Thread(target=urllib2.urlopen, args=(url,))
+                urlopen_t = threading.Thread(target=RunbotBuild.open_url,
+                                             args=(build.port,))
                 urlopen_t.start()
         return res
