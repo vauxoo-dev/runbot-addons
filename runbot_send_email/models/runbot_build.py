@@ -194,7 +194,7 @@ class RunbotBuild(models.Model):
     @api.multi
     def send_email(self):
         partner_obj = self.env['res.partner']
-        for record in self:
+        for record in self.filtered('committer_email'):
             name_build = record.dest
             email_to = record.committer_email
             partner_id = partner_obj.find_or_create(email_to)
