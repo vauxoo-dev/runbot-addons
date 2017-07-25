@@ -15,5 +15,14 @@
                 </xpath>
             </field>
         </record>
+        
+    <template id="add_followings" inherit_id="runbot.build_button">
+       <xpath expr="//ul[@class='dropdown-menu']/li[6]" position="after">
+        <li id="lu_add_follower">
+           <a t-att-data-runbot-build="bu['id']" id="follower-action-btn">Add follower <i class="fa fa-user"/></a>
+        </li>
+      </xpath>
+   </template>
+    
     </data>
 </openerp>

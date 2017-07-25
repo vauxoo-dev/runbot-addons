@@ -18,10 +18,14 @@ email.",
     ],
     "data": [
         "views/runbot_send_email_view.xml",
+        "views/assets.xml",
         "data/runbot_send_email_data.xml",
     ],
     "demo": [
         "demo/ir_mail_server_demo.xml",
+    ],
+    'qweb': [
+        'static/src/xml/runbot_template.xml',
     ],
     "application": False,
     "installable": True,
