@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<templates>
+    <t t-name="AddFollower">
+    <div class="form-group">
+          <label for="sel1"><h3>Select partner email</h3></label>
+            <select class="form-control" rows="100" multiple="multiple" size="1" id="sel1">
+            </select>
+    </div>
+    </t>
+</templates>
