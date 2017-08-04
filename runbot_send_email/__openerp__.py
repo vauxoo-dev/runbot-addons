@@ -17,6 +17,8 @@ email.",
         "fetchmail",
     ],
     "data": [
+        'security/runbot_groups.xml',
+        'security/ir.model.access.csv',
         "views/runbot_send_email_view.xml",
         "views/assets.xml",
         "data/runbot_send_email_data.xml",
