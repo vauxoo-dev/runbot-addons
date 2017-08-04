@@ -223,3 +223,25 @@ class RunbotBuild(models.Model):
         for record in self:
             record.get_github_links()
             record.send_email()
+
+    @api.model
+    def add_followers(self, ids, partners):
+        followers = []
+        build = self.sudo().browse(ids)
+        for partner in partners:
+            followers.append((0, 0, {'res_model': build._name,
+                                     'res_id': build.id,
+                                     'partner_id': partner}))
+        build.write({'message_follower_ids': followers})
+
+    @api.model
+    def select_not_subscribe_partners(self, ids):
+        subscribed = []
+        build = self.browse(ids)
+        followers = build.message_follower_ids
+        if followers:
+            subscribed = followers.mapped('partner_id').ids
+        partner_obj = self.env['res.partner']
+        partner = partner_obj.search([('id', 'not in', subscribed)])
+        partner = partner.filtered(lambda x: x.email)
+        return partner.read()
