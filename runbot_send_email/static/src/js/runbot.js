@@ -15,10 +15,20 @@ $("#lu_add_follower #follower-action-btn" ).on( "click", function(event) {
     var build_id = $(this).data('runbot-build');
     this.$content = $(Qweb.render('AddFollower'));
     event.preventDefault;
+    this.wait = new Dialog(this, {title: _t("<h3>Wait loading data partners</h3>"),
+                                 size: 'medium',
+                                 buttons:[],
+                                 closeButton: false,
+                                 $content: $('<div><i class="fa fa-spinner fa-spin" style="font-size:24px"></i></div>')})
+    this.wait.$modal.find('.close').remove()
+    this.wait.open();
+    console.log(this.wait);
     Build.call("select_not_subscribe_partners", [build_id], {}).then(function(data) {
         for(var i in data){
             self.$content.find("#sel1").append('<option value='+data[i]['id']+'>'+data[i]['email']+'</option>');
             }
+            console.log("aquiiiii");
+            self.wait.destroy();
     });
     var options = {
                 title: _t("<h3>Add Followers</h3>"),

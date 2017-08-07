@@ -237,6 +237,7 @@ class RunbotBuild(models.Model):
     @api.model
     def select_not_subscribe_partners(self, ids):
         subscribed = []
+        import time;time.sleep(10);
         build = self.browse(ids)
         followers = build.message_follower_ids
         if followers:
