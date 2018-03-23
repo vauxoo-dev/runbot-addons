@@ -86,7 +86,7 @@ class TestRunbotSendEmail(TransactionCase):
         if os.environ.get('EMAIL_PASSWORD', False) and \
                 os.environ.get('EMAIL_RECIPIENT', False) and \
                 os.environ.get('EMAIL_USER', False):
-            with self.assertRaisesRegexp(exceptions.except_orm,
+            with self.assertRaisesRegex(exceptions.except_orm,
                                          'Connection Test Succeeded!'):
                 self.mail_server.test_smtp_connection()
 
@@ -94,39 +94,39 @@ class TestRunbotSendEmail(TransactionCase):
         """
         This test tries to send a runbot email with password
         """
-        self.build.github_status()
+        self.build._github_status()
 
     def test_30_send_email_result_ok(self):
         self.build = self.build.search(self.domain)
         self.build.write({'result': 'ok', 'state': 'done'})
-        self.build.github_status()
+        self.build._github_status()
 
     def test_30_send_email_result_ko(self):
         self.build = self.build.search(self.domain)
         self.build.write({'result': 'ko'})
-        self.build.github_status()
+        self.build._github_status()
 
     def test_30_send_email_result_warn(self):
         self.build = self.build.search(self.domain)
         self.build.write({'result': 'warn', 'state': 'done'})
-        self.build.github_status()
+        self.build._github_status()
 
     def test_40_send_email_state_testing(self):
         self.build = self.build.search(self.domain)
         self.build.write({'state': 'testing'})
-        self.build.github_status()
+        self.build._github_status()
 
     def test_50_send_email_brach_pr(self):
         self.branch_obj.write({'name': 'refs/pull/1'})
         self.build = self.build.search(self.domain)
-        self.build.github_status()
+        self.build._github_status()
 
     def test_60_coverage_value_error_form(self):
         self.env.ref('mail.email_compose_message_wizard_form').unlink()
-        self.build.github_status()
+        self.build._github_status()
 
     def test_70_coverage_value_error_template(self):
         self.env.ref('runbot_send_email.runbot_send_notif').unlink()
-        with self.assertRaisesRegexp(etree.ParserError,
+        with self.assertRaisesRegex(etree.ParserError,
                                      'Document is empty'):
-            self.build.github_status()
+            self.build._github_status()

@@ -4,7 +4,7 @@
     <record model="ir.ui.view" id="runbot_send_form_view">
         <field name="name">runbot.build.followers.inherit</field>
         <field name="model">runbot.build</field>
-        <field name="inherit_id" ref="runbot.view_build_form"/>
+        <field name="inherit_id" ref="runbot.build_form"/>
         <field name="arch" type="xml">
             <xpath expr="//sheet" position="after">
                 <div class="oe_chatter">

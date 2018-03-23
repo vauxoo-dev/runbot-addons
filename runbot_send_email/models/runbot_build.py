@@ -3,7 +3,7 @@
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl.html).
 import logging
 import re
-from urlparse import urlparse
+from urllib.parse import urlparse
 
 from odoo import _, api, fields, models
 
@@ -65,7 +65,7 @@ class RunbotBuild(models.Model):
     def _branch_name(self):
         for record in self:
             if 'pull' in record.branch_id.name:
-                branch = _(u"%s #{}" % (
+                branch = _("%s #{}" % (
                     'PR' if not (
                         hasattr(record.branch_id.repo_id, 'uses_gitlab') and
                         record.branch_id.repo_id.uses_gitlab) else 'MR')
@@ -95,11 +95,11 @@ class RunbotBuild(models.Model):
             match_pr = re.search(pr_reg, record.branch_id.name)
 
             if match_pr:
-                subject_temp = _(u"[runbot] {}/{}#{}")\
+                subject_temp = _("[runbot] {}/{}#{}")\
                     .format(record.repo_owner, record.repo_project,
                             record.branch_id.branch_name)
             else:
-                subject_temp = _(u"[runbot] {}/{}#{} - {}")\
+                subject_temp = _("[runbot] {}/{}#{} - {}")\
                     .format(record.repo_owner, record.repo_project,
                             record.branch_id.branch_name, record.name[:8])
 
@@ -216,9 +216,8 @@ class RunbotBuild(models.Model):
                 _logger.info('Sent email to: %s, Build: %s', email_to,
                              name_build)
 
-    @api.multi
-    def github_status(self):
-        super(RunbotBuild, self).github_status()
+    def _github_status(self):
+        super(RunbotBuild, self)._github_status()
         for record in self:
             record.get_github_links()
             record.send_email()
