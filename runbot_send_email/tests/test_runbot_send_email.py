@@ -6,8 +6,6 @@ import logging
 import os
 import threading
 
-from lxml import etree
-
 from odoo import exceptions
 from odoo.tests.common import TransactionCase
 
@@ -122,6 +120,4 @@ class TestRunbotSendEmail(TransactionCase):
 
     def test_70_coverage_value_error_template(self):
         self.env.ref('runbot_send_email.runbot_send_notif').unlink()
-        with self.assertRaisesRegex(etree.ParserError,
-                                    'Document is empty'):
-            self.build._github_status()
+        self.build._github_status()
