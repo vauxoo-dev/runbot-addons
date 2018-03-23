@@ -64,11 +64,6 @@ class TestRunbotSendEmail(TransactionCase):
                 'smtp_user': os.environ.get('EMAIL_USER'),
                 'sequence': 0,
             })
-            # Added partner to set notify_email to always
-        partner_obj = self.env['res.partner']
-        partner_id = partner_obj.find_or_create(recipient)
-        partner = partner_obj.browse(partner_id)
-        partner.write({'notify_email': 'always'})
 
     def tearDown(self):
         """
