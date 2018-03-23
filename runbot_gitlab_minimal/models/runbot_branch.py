@@ -7,6 +7,7 @@ from odoo import api, fields, models
 class RunbotBranch(models.Model):
     _inherit = "runbot.branch"
 
+    # pylint: disable=method-compute
     branch_url = fields.Char(compute='_get_branch_url')
 
     @api.depends('branch_name')
