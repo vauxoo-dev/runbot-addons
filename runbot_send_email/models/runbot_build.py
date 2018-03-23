@@ -11,6 +11,7 @@ _logger = logging.getLogger(__name__)
 
 
 class RunbotBuild(models.Model):
+    # pylint: disable=method-compute
     _name = "runbot.build"
     _inherit = ['runbot.build', 'mail.thread']
 

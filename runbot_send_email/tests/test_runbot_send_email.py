@@ -82,7 +82,7 @@ class TestRunbotSendEmail(TransactionCase):
                 os.environ.get('EMAIL_RECIPIENT', False) and \
                 os.environ.get('EMAIL_USER', False):
             with self.assertRaisesRegex(exceptions.except_orm,
-                                         'Connection Test Succeeded!'):
+                                        'Connection Test Succeeded!'):
                 self.mail_server.test_smtp_connection()
 
     def test_20_send_email(self):
@@ -123,5 +123,5 @@ class TestRunbotSendEmail(TransactionCase):
     def test_70_coverage_value_error_template(self):
         self.env.ref('runbot_send_email.runbot_send_notif').unlink()
         with self.assertRaisesRegex(etree.ParserError,
-                                     'Document is empty'):
+                                    'Document is empty'):
             self.build._github_status()
