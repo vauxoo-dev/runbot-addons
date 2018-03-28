@@ -8,6 +8,7 @@ import threading
 
 from odoo import exceptions
 from odoo.tests.common import TransactionCase
+from odoo.tools import mute_logger
 
 _logger = logging.getLogger(__name__)
 
@@ -121,3 +122,49 @@ class TestRunbotSendEmail(TransactionCase):
     def test_70_coverage_value_error_template(self):
         self.env.ref('runbot_send_email.runbot_send_notif').unlink()
         self.build._github_status()
+
+    def test_80_update_followers_runbot_build(self):
+        """Test for the method update_followers for the model runbot.build.
+        """
+        user = self.env['res.users'].browse(self.env.uid)
+        result = self.build.update_followers()
+        followers = self.build.message_partner_ids
+        self.assertFalse(result)
+        self.assertFalse(followers)
+        result = self.build.update_followers()
+        followers = self.build.message_partner_ids
+        self.assertTrue(result)
+        self.assertEquals(user.partner_id, followers[0])
+
+    def test_81_update_followers_runbot_repo(self):
+        """Test for the method update_followers for the model runbot.repo.
+        """
+        user = self.env['res.users'].browse(self.env.uid)
+        result = self.build.repo_id.update_followers()
+        self.assertFalse(result)
+        self.assertFalse(self.build.repo_id.message_partner_ids)
+        result = self.build.repo_id.update_followers()
+        followers = self.build.repo_id.message_partner_ids
+        self.assertTrue(result)
+        self.assertEquals(user.partner_id, followers[0])
+        self.assertEquals(user.partner_id, self.build.message_partner_ids[0])
+
+    def test_82_message_get_email_values(self):
+        """Test for the method message_get_email_values.
+        """
+        result = self.build.message_get_email_values()
+        emails = self.build.message_partner_ids.mapped('email')
+        self.assertTrue(result)
+        self.assertEquals(','.join(emails), result.get('email_to'))
+
+    @mute_logger('odoo.addons.mail.models.mail_mail')
+    def test_90_send_email(self):
+        """Test for the method send_email_admins.
+        """
+        self.build.send_email()
+        mail = self.env['mail.mail'].search([('res_id', '=', self.build.id)],
+                                            limit=1, order='id desc')
+        emails = self.build.message_partner_ids.mapped('email')
+        self.assertTrue(mail)
+        self.assertTrue(mail.body)
+        self.assertEqual(','.join(emails), mail.email_to)

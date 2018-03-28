@@ -4,7 +4,7 @@
 import logging
 import re
 from urllib.parse import urlparse
-
+from email.utils import formataddr
 from odoo import _, api, fields, models
 
 _logger = logging.getLogger(__name__)
@@ -25,15 +25,6 @@ class RunbotBuild(models.Model):
     host_name = fields.Char(compute='_host_name')
     branch_name = fields.Char(compute='_branch_name')
     subject_email = fields.Char(compute='_subject_email')
-    webaccess_link = fields.Char(compute='_webaccess_link')
-    logplainbase_link = fields.Char(compute='_logplainbase_link')
-    logplainall_link = fields.Char(compute='_logplainall_link')
-    log_link = fields.Char(compute='_log_link')
-    ssh_link = fields.Char(compute='_ssh_link')
-    doc_link = fields.Char(compute='_doc_link')
-    dockerdoc_link = fields.Char(compute='_dockerdoc_link')
-    configfile_link = fields.Char(compute='_configfile_link')
-    shareissue_link = fields.Char(compute='_shareissue_link')
 
     @api.multi
     def get_github_links(self):
@@ -107,140 +98,59 @@ class RunbotBuild(models.Model):
             record.subject_email = subject_temp
 
     @api.multi
-    def _webaccess_link(self):
-        for record in self:
-            html = "http://{}/?db={}-all"
-            link = _(html).format(record.domain, record.dest)
-            record.webaccess_link = link
-
-    @api.multi
-    def _logplainbase_link(self):
-        for record in self:
-            html = "/runbot/static/build/{}/logs/job_10_test_base.txt"
-            link = _(html).format(record.dest)
-            record.logplainbase_link = link
-
-    @api.multi
-    def _logplainall_link(self):
-        for record in self:
-            html = "/runbot/static/build/{}/logs/job_20_test_all.txt"
-            link = _(html).format(record.dest)
-            record.logplainall_link = link
-
-    @api.multi
-    def _log_link(self):
-        for record in self:
-            html = "/runbot/build/{}"
-            link = _(html).format(record.id)
-            record.log_link = link
-
-    @api.multi
-    def _ssh_link(self):
-        for record in self:
-            html = "ssh -p {} odoo@{}"
-            link = _(html).format(record.port+1, record.host_name)
-            record.ssh_link = link
-
-    @api.multi
-    def _doc_link(self):
-        for record in self:
-            link = '/runbot_doc/static/index.html'
-            record.doc_link = link
-
-    @api.multi
-    def _dockerdoc_link(self):
-        for record in self:
-            link = 'https://github.com/Vauxoo/travis2docker/wiki'
-            record.dockerdoc_link = link
-
-    @api.multi
-    def _configfile_link(self):
-        for record in self:
-            link = 'https://github.com/Vauxoo/travis2docker/wiki'
-            record.configfile_link = link
-
-    @api.multi
-    def _shareissue_link(self):
-        for record in self:
-            link = 'https://github.com/Vauxoo/runbot-addons/issues/new'
-            record.shareissue_link = link
-
-    @api.multi
-    def action_send_email(self):
-        self.ensure_one()
-        ir_model_data = self.env['ir.model.data']
-        try:
-            template_id = ir_model_data.get_object_reference(
-                'runbot_send_email', 'runbot_send_notif')[1]
-        except ValueError:
-            template_id = False
-        try:
-            compose_form_id = ir_model_data.get_object_reference(
-                'mail', 'email_compose_message_wizard_form')[1]
-        except ValueError:
-            compose_form_id = False
-        ctx = dict()
-        ctx.update({
-            'default_model': 'runbot',
-            'default_res_id': self.ids[0],
-            'default_use_template': bool(template_id),
-            'default_template_id': template_id,
-            'default_composition_mode': 'comment',
-            'mark_so_as_sent': True
-        })
-        return {
-            'type': 'ir.actions.act_window',
-            'view_type': 'form',
-            'view_mode': 'form',
-            'res_model': 'mail.compose.message',
-            'views': [(compose_form_id, 'form')],
-            'view_id': compose_form_id,
-            'target': 'new',
-            'context': ctx,
-        }
-
-    @api.multi
     def send_email(self):
-        partner_obj = self.env['res.partner']
-        for record in self.filtered('committer_email'):
-            name_build = record.dest
-            email_to = record.committer_email
-            partner_id = partner_obj.find_or_create(email_to)
-            partner = partner_obj.browse(partner_id)
-            if partner not in record.message_partner_ids:
-                record.message_subscribe([partner.id])
-            email_act = record.action_send_email()
-            if email_act and email_act.get('context'):
-                email_ctx = email_act['context']
-                record.with_context(email_ctx).message_post_with_template(
-                    email_ctx.get('default_template_id'))
-                _logger.info('Sent email to: %s, Build: %s', email_to,
-                             name_build)
+        config_parameters = self.env['ir.config_parameter'].sudo()
+        mail_server = self.env['ir.mail_server'].search(
+            [], order='sequence', limit=1)
+        partner = self.env['res.partner'].search([
+            ('email', '=ilike', self.committer_email)], limit=1)
+        email_from = formataddr((partner and partner.name.title or
+                                 self.env.user.name.title(),
+                                 mail_server.smtp_user or ''))
+        reply_to = "{alias}@{domain}".format(
+            alias=config_parameters.get_param('mail.catchall.alias'),
+            domain=config_parameters.get_param('mail.catchall.domain'))
+        emails = self.message_partner_ids.mapped("email")
+        if partner and partner not in self.message_partner_ids:
+            self.message_subscribe_users(user_ids=[partner.user_ids.id])
+        if not emails:
+            _logger.warning('Failed to send the email: Receiver not provided')
+            return
+        values = {'email_from': email_from, 'reply_to': reply_to,
+                  'composition_mode': 'mass_mail'}
+        template = self.env.ref('runbot_send_email.runbot_send_notif')
+        # Render the template
+        return self.sudo().message_post_with_template(template.id, **values)
 
     def _github_status(self):
-        super(RunbotBuild, self)._github_status()
+        build = super(RunbotBuild, self)._github_status()
         for record in self:
             record.get_github_links()
-            record.send_email()
+            if record.state == 'running':
+                record.send_email()
+        return build
 
-    @api.model
-    def add_followers(self, ids, partners):
-        followers = []
-        build = self.sudo().browse(ids)
-        for partner in partners:
-            followers.append((0, 0, {'res_model': build._name,
-                                     'res_id': build.id,
-                                     'partner_id': partner}))
-        build.write({'message_follower_ids': followers})
+    def update_followers(self):
+        """This method remove or add the user from followers of model
+        'runbot.build' that has logged.
+        """
+        if self.env.user.partner_id not in self.message_partner_ids:
+            self.message_subscribe_users(user_ids=[self.env.uid])
+            follower = True
+        else:
+            self.message_unsubscribe_users(user_ids=[self.env.uid])
+            follower = False
+        return follower
 
-    @api.model
-    def select_not_subscribe_partners(self, ids):
-        subscribed = []
-        build = self.browse(ids)
-        followers = build.message_follower_ids
-        if followers:
-            subscribed = followers.mapped('partner_id').ids
-        partner_obj = self.env['res.partner']
-        partner = partner_obj.search([('id', 'not in', subscribed)])
-        partner = partner.filtered(lambda x: x.email)
-        return partner.read()
+    def create(self, vals):
+        """Add the followers of repository to the followers of build.
+        """
+        build_id = super(RunbotBuild, self).create(vals)
+        users = build_id.repo_id.message_partner_ids.mapped('user_ids')
+        build_id.message_subscribe_users(user_ids=users.ids)
+        return build_id
+
+    def message_get_email_values(self):
+        """Get the values for the
+        """
+        return {'email_to': ','.join(self.message_partner_ids.mapped('email'))}
