@@ -4,14 +4,14 @@ odoo.define('runbot.followers', function (require) {
 
     require('web.dom_ready');
 
-    $('.update_followers').each( function() {
+    $('.user_follow_unfollow').each( function() {
         $(this).on('click', function () {
             var $btn = $(this),
                 record = $btn.data('record'),
                 model = $btn.data('model');
             rpc.query({
                 model: model,
-                method: 'update_followers',
+                method: 'user_follow_unfollow',
                 args: [record]
             }).then( function (result) {
                 $btn.empty();
@@ -19,7 +19,7 @@ odoo.define('runbot.followers', function (require) {
                 var type = result ? 'success' : 'warning';
                 $('<i>').addClass('fa fa-eye text-' + type).appendTo($btn);
                 if (model === 'runbot.repo') {
-                    $('a.update_followers').each( function () {
+                    $('a.user_follow_unfollow').each( function () {
                         $(this).empty();
                         $(this).html(result ? 'Unwatch ' : 'Watch ');
                         $('<i>').addClass('fa fa-eye text-' + type).appendTo(this);

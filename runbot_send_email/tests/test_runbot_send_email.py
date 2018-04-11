@@ -123,27 +123,27 @@ class TestRunbotSendEmail(TransactionCase):
         self.env.ref('runbot_send_email.runbot_send_notif').unlink()
         self.build._github_status()
 
-    def test_80_update_followers_runbot_build(self):
-        """Test for the method update_followers for the model runbot.build.
+    def test_80_user_follow_unfollow_runbot_build(self):
+        """Test for the method user_follow_unfollow for the model runbot.build.
         """
         user = self.env['res.users'].browse(self.env.uid)
-        result = self.build.update_followers()
+        result = self.build.user_follow_unfollow()
         followers = self.build.message_partner_ids
         self.assertFalse(result)
         self.assertFalse(followers)
-        result = self.build.update_followers()
+        result = self.build.user_follow_unfollow()
         followers = self.build.message_partner_ids
         self.assertTrue(result)
         self.assertEquals(user.partner_id, followers[0])
 
-    def test_81_update_followers_runbot_repo(self):
-        """Test for the method update_followers for the model runbot.repo.
+    def test_81_user_follow_unfollow_runbot_repo(self):
+        """Test for the method user_follow_unfollow for the model runbot.repo.
         """
         user = self.env['res.users'].browse(self.env.uid)
-        result = self.build.repo_id.update_followers()
+        result = self.build.repo_id.user_follow_unfollow()
         self.assertFalse(result)
         self.assertFalse(self.build.repo_id.message_partner_ids)
-        result = self.build.repo_id.update_followers()
+        result = self.build.repo_id.user_follow_unfollow()
         followers = self.build.repo_id.message_partner_ids
         self.assertTrue(result)
         self.assertEquals(user.partner_id, followers[0])

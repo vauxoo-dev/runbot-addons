@@ -130,27 +130,24 @@ class RunbotBuild(models.Model):
                 record.send_email()
         return build
 
-    def update_followers(self):
+    def user_follow_unfollow(self):
         """This method remove or add the user from followers of model
         'runbot.build' that has logged.
         """
         if self.env.user.partner_id not in self.message_partner_ids:
             self.message_subscribe_users(user_ids=[self.env.uid])
-            follower = True
-        else:
-            self.message_unsubscribe_users(user_ids=[self.env.uid])
-            follower = False
-        return follower
+            return True
+        self.message_unsubscribe_users(user_ids=[self.env.uid])
+        return False
 
     def create(self, vals):
         """Add the followers of repository to the followers of build.
         """
-        build_id = super(RunbotBuild, self).create(vals)
+        self_ctx = self.with_context(mail_create_nosubscribe=True)
+        build_id = super(RunbotBuild, self_ctx).create(vals)
         users = build_id.repo_id.message_partner_ids.mapped('user_ids')
         build_id.message_subscribe_users(user_ids=users.ids)
         return build_id
 
     def message_get_email_values(self):
-        """Get the values for the
-        """
         return {'email_to': ','.join(self.message_partner_ids.mapped('email'))}
