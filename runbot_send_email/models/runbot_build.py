@@ -26,6 +26,19 @@ class RunbotBuild(models.Model):
     branch_name = fields.Char(compute='_branch_name')
     subject_email = fields.Char(compute='_subject_email')
 
+    @api.depends('committer_email')
+    def set_follower(self):
+        # TODO: Add the user committer_email as follower of the build
+        # TODO: Remove the logic that send email and use template.send_email
+        #    https://github.com/odoo/odoo/blob/73425edfe9e03c8ea7e97ab9d7cd6eddec718849/addons/rating/models/rating.py#L213-L218
+        for record in self.filtered('committer_email'):
+            email = record.committer_email.lstrip('<').rstrip('>')
+            user = self.env['res.users'].search([
+                ('login', '=ilike', email)], limit=1)
+            if not user:
+                continue
+            record.message_subscribe_users(user_ids=user.ids)
+
     @api.multi
     def get_github_links(self):
         repo_git_regex = r"((git@|https://)([\w\.@]+)(/|:))" + \
