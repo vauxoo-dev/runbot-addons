@@ -1,4 +1,4 @@
-from odoo import models
+from odoo import api, models
 
 
 class RunbotRepo(models.Model):
@@ -15,3 +15,10 @@ class RunbotRepo(models.Model):
             return True
         self.message_unsubscribe_users(user_ids=[self.env.uid])
         return False
+
+    @api.model
+    def create(self, vals):
+        """Skip add follower to user that creates this record
+        """
+        self_ctx = self.with_context(mail_create_nosubscribe=True)
+        return super(RunbotRepo, self_ctx).create(vals)

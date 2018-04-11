@@ -140,6 +140,7 @@ class RunbotBuild(models.Model):
         self.message_unsubscribe_users(user_ids=[self.env.uid])
         return False
 
+    @api.model
     def create(self, vals):
         """Add the followers of repository to the followers of build.
         """
