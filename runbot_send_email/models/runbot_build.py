@@ -1,6 +1,6 @@
-# © 2016 Vauxoo
-#   Coded by: lescobar@vauxoo.com
-# License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl.html).
+# Copyright <2016> <Vauxoo info@vauxoo.com>
+# License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl).
+
 import logging
 import re
 from urllib.parse import urlparse
@@ -15,132 +15,17 @@ class RunbotBuild(models.Model):
     _name = "runbot.build"
     _inherit = ['runbot.build', 'mail.thread']
 
-    repo_link = fields.Char()
-    pr_link = fields.Char()
-    commit_link = fields.Char()
-    repo_host = fields.Char()
-    repo_owner = fields.Char()
-    repo_project = fields.Char()
-    status_build = fields.Char(compute='_status_build')
-    host_name = fields.Char(compute='_host_name')
-    branch_name = fields.Char(compute='_branch_name')
-    subject_email = fields.Char(compute='_subject_email')
-
-    @api.depends('committer_email')
-    def set_follower(self):
-        # TODO: Add the user committer_email as follower of the build
-        # TODO: Remove the logic that send email and use template.send_email
-        #    https://github.com/odoo/odoo/blob/73425edfe9e03c8ea7e97ab9d7cd6eddec718849/addons/rating/models/rating.py#L213-L218
-        for record in self.filtered('committer_email'):
-            email = record.committer_email.lstrip('<').rstrip('>')
-            user = self.env['res.users'].search([
-                ('login', '=ilike', email)], limit=1)
-            if not user:
-                continue
-            record.message_subscribe_users(user_ids=user.ids)
-
-    @api.multi
-    def get_github_links(self):
-        repo_git_regex = r"((git@|https://)([\w\.@]+)(/|:))" + \
-            r"([~\w,\-,\_]+)/" + r"([\w,\-,\_]+)(.git){0,1}((/){0,1})"
-        for rec in self:
-            rec.repo_host, rec.repo_owner, rec.repo_project = '', '', ''
-
-            match_object = re.search(repo_git_regex, rec.repo_id.name)
-            if match_object:
-                rec.repo_host = match_object.group(3)
-                rec.repo_owner = match_object.group(5)
-                rec.repo_project = match_object.group(6)
-            rec.repo_link = "https://" + rec.repo_host + '/' + rec.repo_owner \
-                + '/' + rec.repo_project
-            rec.pr_link = rec.repo_link + rec.branch_id.name.replace(
-                'refs/heads', '/tree').replace('refs', '')
-            if (hasattr(rec.branch_id.repo_id, 'uses_gitlab') and
-                    rec.branch_id.repo_id.uses_gitlab):
-                rec.pr_link = rec.pr_link.replace('/pull/', '/merge_requests/')
-            rec.commit_link = rec.repo_link + '/commit/' + rec.name[:8]
-
-    @api.multi
-    def _host_name(self):
-        base_url = self.env['ir.config_parameter'].get_param('web.base.url')
-        for record in self:
-            record.host_name = urlparse(base_url).hostname
-
-    @api.multi
-    def _branch_name(self):
-        for record in self:
-            if 'pull' in record.branch_id.name:
-                branch = _("%s #{}" % (
-                    'PR' if not (
-                        hasattr(record.branch_id.repo_id, 'uses_gitlab') and
-                        record.branch_id.repo_id.uses_gitlab) else 'MR')
-                )
-                branch = branch.format(record.branch_id.branch_name)
-            else:
-                branch = record.branch_id.branch_name
-            record.branch_name = branch
-
-    @api.multi
-    def _status_build(self):
-        for record in self:
-            status = 'Broken'
-            if record.state == 'testing':
-                status = 'Testing'
-            elif record.state in ('running', 'done'):
-                if record.result == 'ok':
-                    status = 'Fixed'
-                elif record.result == 'warn':
-                    status = "Warning"
-            record.status_build = status
-
-    @api.multi
-    def _subject_email(self):
-        for record in self:
-            pr_reg = "(\\/pull\\/)"
-            match_pr = re.search(pr_reg, record.branch_id.name)
-
-            if match_pr:
-                subject_temp = _("[runbot] {}/{}#{}")\
-                    .format(record.repo_owner, record.repo_project,
-                            record.branch_id.branch_name)
-            else:
-                subject_temp = _("[runbot] {}/{}#{} - {}")\
-                    .format(record.repo_owner, record.repo_project,
-                            record.branch_id.branch_name, record.name[:8])
-
-            record.subject_email = subject_temp
-
     @api.multi
     def send_email(self):
-        config_parameters = self.env['ir.config_parameter'].sudo()
-        mail_server = self.env['ir.mail_server'].search(
-            [], order='sequence', limit=1)
-        partner = self.env['res.partner'].search([
-            ('email', '=ilike', self.committer_email)], limit=1)
-        email_from = formataddr((partner and partner.name.title or
-                                 self.env.user.name.title(),
-                                 mail_server.smtp_user or ''))
-        reply_to = "{alias}@{domain}".format(
-            alias=config_parameters.get_param('mail.catchall.alias'),
-            domain=config_parameters.get_param('mail.catchall.domain'))
-        emails = self.message_partner_ids.mapped("email")
-        if partner and partner not in self.message_partner_ids:
-            self.message_subscribe_users(user_ids=[partner.user_ids.id])
-        if not emails:
-            _logger.warning('Failed to send the email: Receiver not provided')
-            return
-        values = {'email_from': email_from, 'reply_to': reply_to,
-                  'composition_mode': 'mass_mail'}
         template = self.env.ref('runbot_send_email.runbot_send_notif')
-        # Render the template
-        return self.sudo().message_post_with_template(template.id, **values)
+        for record in self:
+            values = {'email_to': ','.join(self.message_partner_ids.mapped(
+                'email'))}
+            template.send_mail(record.id, force_send=True, email_values=values)
 
     def _github_status(self):
         build = super(RunbotBuild, self)._github_status()
-        for record in self:
-            record.get_github_links()
-            if record.state == 'running':
-                record.send_email()
+        self.filtered(lambda record: record.state == 'running').send_email()
         return build
 
     def user_follow_unfollow(self):
@@ -161,7 +46,19 @@ class RunbotBuild(models.Model):
         build_id = super(RunbotBuild, self_ctx).create(vals)
         users = build_id.repo_id.message_partner_ids.mapped('user_ids')
         build_id.message_subscribe_users(user_ids=users.ids)
+        self.subscribe_committer()
         return build_id
 
-    def message_get_email_values(self):
-        return {'email_to': ','.join(self.message_partner_ids.mapped('email'))}
+    def write(self, vals):
+        result = super().write(vals)
+        self.subscribe_committer()
+        return result
+
+    def subscribe_committer(self):
+        if not self.committer_email:
+            return False
+        email = self.committer_email.lstrip('<').rstrip('>')
+        partner = self.env['res.partner'].search([
+            ('email', '=ilike', email)], limit=1)
+        if partner and partner not in self.message_partner_ids:
+            self.message_subscribe_users(user_ids=[partner.user_ids.id])
