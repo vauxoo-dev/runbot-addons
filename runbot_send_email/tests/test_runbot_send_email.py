@@ -1,6 +1,5 @@
-# © 2015 Vauxoo
-#   Coded by: lescobar@vauxoo.com
-# License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl.html).
+# Copyright <2016> <Vauxoo info@vauxoo.com>
+# License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl).
 
 import logging
 import os

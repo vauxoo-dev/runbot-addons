@@ -1,6 +1,5 @@
-# © 2016 Vauxoo
-#   Coded by: lescobar@vauxoo.com
-# License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl.html).
+# Copyright <2016> <Vauxoo info@vauxoo.com>
+# License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl).
 
 {
     "name": "Runbot Send Email Result",
@@ -12,8 +11,7 @@ email.",
     "author": "Vauxoo,Odoo Community Association (OCA)",
     "license": "AGPL-3",
     "depends": [
-        "runbot",
-        "fetchmail",
+        "runbot"
     ],
     "data": [
         "views/runbot_send_email_view.xml",
