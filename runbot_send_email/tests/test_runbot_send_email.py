@@ -127,34 +127,23 @@ class TestRunbotSendEmail(TransactionCase):
         """
         user = self.env['res.users'].browse(self.env.uid)
         result = self.build.user_follow_unfollow()
-        followers = self.build.message_partner_ids
-        self.assertFalse(result)
-        self.assertFalse(followers)
-        result = self.build.user_follow_unfollow()
-        followers = self.build.message_partner_ids
         self.assertTrue(result)
-        self.assertEquals(user.partner_id, followers[0])
+        self.assertEquals(user.partner_id, self.build.message_partner_ids[0])
+        result = self.build.user_follow_unfollow()
+        self.assertFalse(result)
+        self.assertFalse(self.build.message_partner_ids)
 
     def test_81_user_follow_unfollow_runbot_repo(self):
         """Test for the method user_follow_unfollow for the model runbot.repo.
         """
         user = self.env['res.users'].browse(self.env.uid)
         result = self.build.repo_id.user_follow_unfollow()
-        self.assertFalse(result)
-        self.assertFalse(self.build.repo_id.message_partner_ids)
-        result = self.build.repo_id.user_follow_unfollow()
         followers = self.build.repo_id.message_partner_ids
         self.assertTrue(result)
         self.assertEquals(user.partner_id, followers[0])
-        self.assertEquals(user.partner_id, self.build.message_partner_ids[0])
-
-    def test_82_message_get_email_values(self):
-        """Test for the method message_get_email_values.
-        """
-        result = self.build.message_get_email_values()
-        emails = self.build.message_partner_ids.mapped('email')
-        self.assertTrue(result)
-        self.assertEquals(','.join(emails), result.get('email_to'))
+        result = self.build.repo_id.user_follow_unfollow()
+        self.assertFalse(result)
+        self.assertFalse(self.build.repo_id.message_partner_ids)
 
     @mute_logger('odoo.addons.mail.models.mail_mail')
     def test_90_send_email(self):
