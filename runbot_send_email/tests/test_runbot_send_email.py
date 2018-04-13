@@ -44,6 +44,8 @@ class TestRunbotSendEmail(TransactionCase):
             'coverage': False,
         })
         recipient = os.environ.get('EMAIL_RECIPIENT', 'committer@testsend.com')
+        self.partner = self.env.ref('base.user_demo').partner_id
+        self.partner.email = recipient
         self.build = self.env['runbot.build'].create({
             'branch_id': self.branch.id,
             'name': 'fcb98eb195fc62fa49873f8f101f1738e38ea7c0',
@@ -116,10 +118,13 @@ class TestRunbotSendEmail(TransactionCase):
         user = self.env['res.users'].browse(self.env.uid)
         result = self.build.user_follow_unfollow()
         self.assertTrue(result)
-        self.assertEquals(user.partner_id, self.build.message_partner_ids[0])
+        self.assertIn(user.partner_id, self.build.message_partner_ids,
+                      "Current user was not found as follower")
+        self.assertIn(self.partner, self.build.message_partner_ids,
+                      "The committer was not found as follower")
         result = self.build.user_follow_unfollow()
         self.assertFalse(result)
-        self.assertFalse(self.build.message_partner_ids)
+        self.assertNotIn(user.partner_id, self.build.message_partner_ids)
 
     def test_user_follow_unfollow_runbot_repo(self):
         """Test for the method user_follow_unfollow for the model runbot.repo.
@@ -128,7 +133,7 @@ class TestRunbotSendEmail(TransactionCase):
         self.assertTrue(result)
         user = self.env['res.users'].browse(self.env.uid)
         followers = self.build.repo_id.message_partner_ids
-        self.assertEquals(user.partner_id, followers[0])
+        self.assertIn(user.partner_id, followers)
         result = self.build.repo_id.user_follow_unfollow()
         self.assertFalse(result)
         self.assertFalse(self.build.repo_id.message_partner_ids)
@@ -146,7 +151,7 @@ class TestRunbotSendEmail(TransactionCase):
 
     @mute_logger('odoo.addons.mail.models.mail_mail')
     def test_send_email(self):
-        """Test for the method send_email_admins.
+        """Test for check if the email_to is filled correctly.
         """
         result = self.build.user_follow_unfollow()
         self.assertTrue(result)
@@ -155,4 +160,4 @@ class TestRunbotSendEmail(TransactionCase):
         self.build.send_email()
         mail = self.get_last_build_mail(self.build)
         self.assertTrue(mail.body)
-        self.assertEquals([mail.email_to], emails)
+        self.assertEqual(sorted(mail.email_to.split(',')), sorted(emails))
