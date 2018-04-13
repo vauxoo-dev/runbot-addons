@@ -10,7 +10,6 @@ from odoo import exceptions
 from odoo.tests.common import TransactionCase
 from odoo.tools import config, mute_logger
 
-
 _logger = logging.getLogger(__name__)
 
 SEND_REAL_EMAIL = (
