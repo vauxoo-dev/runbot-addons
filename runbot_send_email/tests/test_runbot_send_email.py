@@ -114,14 +114,6 @@ class TestRunbotSendEmail(TransactionCase):
         self.build = self.build.search(self.domain)
         self.build._github_status()
 
-    def test_60_coverage_value_error_form(self):
-        self.env.ref('mail.email_compose_message_wizard_form').unlink()
-        self.build._github_status()
-
-    def test_70_coverage_value_error_template(self):
-        self.env.ref('runbot_send_email.runbot_send_notif').unlink()
-        self.build._github_status()
-
     def test_80_user_follow_unfollow_runbot_build(self):
         """Test for the method user_follow_unfollow for the model runbot.build.
         """
@@ -149,9 +141,13 @@ class TestRunbotSendEmail(TransactionCase):
     def test_90_send_email(self):
         """Test for the method send_email_admins.
         """
+        self.build.message_subscribe_users(user_ids=[self.env.uid])
+        template = self.build.get_email_template()
+        template.auto_delete = False
         self.build.send_email()
-        mail = self.env['mail.mail'].search([('res_id', '=', self.build.id)],
-                                            limit=1, order='id desc')
+        mail = self.env['mail.mail'].search([
+            ('res_id', '=', self.build.id), ('model', '=', self.build._name),
+        ], limit=1, order='id desc')
         emails = self.build.message_partner_ids.mapped('email')
         self.assertTrue(mail)
         self.assertTrue(mail.body)

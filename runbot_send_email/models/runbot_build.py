@@ -2,29 +2,27 @@
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl).
 
 import logging
-import re
-from urllib.parse import urlparse
-from email.utils import formataddr
-from odoo import _, api, fields, models
+from odoo import api, models
 
 _logger = logging.getLogger(__name__)
 
 
 class RunbotBuild(models.Model):
-    # pylint: disable=method-compute
     _name = "runbot.build"
     _inherit = ['runbot.build', 'mail.thread']
 
     @api.multi
+    def get_email_template(self):
+        return self.env.ref('runbot_send_email.runbot_send_notif')
+
+    @api.multi
     def send_email(self):
-        template = self.env.ref('runbot_send_email.runbot_send_notif')
+        template = self.get_email_template()
         for record in self:
-            values = {'email_to': ','.join(self.message_partner_ids.mapped(
-                'email'))}
-            template.send_mail(record.id, force_send=True, email_values=values)
+            template.send_mail(record.id, force_send=True)
 
     def _github_status(self):
-        build = super(RunbotBuild, self)._github_status()
+        build = super()._github_status()
         self.filtered(lambda record: record.state == 'running').send_email()
         return build
 
@@ -46,7 +44,7 @@ class RunbotBuild(models.Model):
         build_id = super(RunbotBuild, self_ctx).create(vals)
         users = build_id.repo_id.message_partner_ids.mapped('user_ids')
         build_id.message_subscribe_users(user_ids=users.ids)
-        self.subscribe_committer()
+        build_id.subscribe_committer()
         return build_id
 
     def write(self, vals):
@@ -55,10 +53,9 @@ class RunbotBuild(models.Model):
         return result
 
     def subscribe_committer(self):
-        if not self.committer_email:
-            return False
-        email = self.committer_email.lstrip('<').rstrip('>')
-        partner = self.env['res.partner'].search([
-            ('email', '=ilike', email)], limit=1)
-        if partner and partner not in self.message_partner_ids:
-            self.message_subscribe_users(user_ids=[partner.user_ids.id])
+        for build in self.filtered('committer_email'):
+            email = build.committer_email.lstrip('<').rstrip('>')
+            partner = self.env['res.partner'].search([
+                ('email', '=ilike', email)], limit=1)
+            if partner and partner not in self.message_partner_ids:
+                self.message_subscribe_users(user_ids=partner.user_ids.ids)

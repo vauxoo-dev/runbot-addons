@@ -3,6 +3,7 @@
     <record id="runbot_send_notif" model="mail.template">
         <field name="name">Send Email Notification Status</field>
         <field name="model_id" ref="runbot.model_runbot_build"/>
+        <field name="email_to">${','.join(object.message_partner_ids.mapped('email')) | safe}</field>
         <field name="subject">[runbot] ${'/'.join(object.repo_id.base.split('/')[1:])}# ${object.branch_id.branch_name} - ${object.name[:8]}</field>
         <field name="body_html"><![CDATA[
     <div style="font-size:2px;color:#FFFFFF">${object.state.capitalize()} @ ${object.name[:8]} - build_${object.sequence}</div>
