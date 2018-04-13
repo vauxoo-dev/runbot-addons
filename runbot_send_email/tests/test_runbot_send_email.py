@@ -126,6 +126,14 @@ class TestRunbotSendEmail(TransactionCase):
         self.assertFalse(result)
         self.assertNotIn(user.partner_id, self.build.message_partner_ids)
 
+    def test_follow_committer_write(self):
+        """Test that write method adds the committe as follower"""
+        self.build.commmitter_email = False
+        self.build.message_unsubscribe(self.build.message_partner_ids.ids)
+        self.assertFalse(self.build.message_partner_ids)
+        self.build.committer_email = self.partner.email
+        self.assertEquals(self.build.message_partner_ids, self.partner)
+
     def test_user_follow_unfollow_runbot_repo(self):
         """Test for the method user_follow_unfollow for the model runbot.repo.
         """
