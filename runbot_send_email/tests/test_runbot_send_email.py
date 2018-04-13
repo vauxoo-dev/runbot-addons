@@ -3,21 +3,19 @@
 
 import logging
 import os
-import tempfile
 import threading
 import unittest
 
 from odoo import exceptions
 from odoo.tests.common import TransactionCase
-from odoo.tools import mute_logger
+from odoo.tools import config, mute_logger
+
 
 _logger = logging.getLogger(__name__)
 
 SEND_REAL_EMAIL = (
     os.environ.get('EMAIL_PASSWORD') and os.environ.get('EMAIL_RECIPIENT') and
     os.environ.get('EMAIL_USER'))
-TEMP_DIR = tempfile.mkdtemp(prefix="runbot_send_email_tmp")
-_logger.info("temporary directory %s", TEMP_DIR)
 
 
 class TestRunbotSendEmail(TransactionCase):
@@ -92,21 +90,25 @@ class TestRunbotSendEmail(TransactionCase):
         self.build.result = 'ok'
         self.build._github_status()
         mail = self.get_last_build_mail(self.build)
+        self.assertIn("Build #%d is ok" % self.build.id, mail.body)
 
     def test_send_email_result_ko(self):
         self.build.result = 'ko'
         self.build._github_status()
         mail = self.get_last_build_mail(self.build)
+        self.assertIn("Build #%d failed" % self.build.id, mail.body)
 
     def test_send_email_result_warn(self):
         self.build.result = 'warn'
         self.build._github_status()
         mail = self.get_last_build_mail(self.build)
+        self.assertIn("Build #%d has warnings" % self.build.id, mail.body)
 
     def test_send_email_branch_pr(self):
         self.branch.write({'name': 'refs/pull/1'})
         self.build._github_status()
         mail = self.get_last_build_mail(self.build)
+        self.assertIn("pull/1", mail.body)
 
     def test_user_follow_unfollow_runbot_build(self):
         """Test for the method user_follow_unfollow for the model runbot.build.
@@ -135,9 +137,11 @@ class TestRunbotSendEmail(TransactionCase):
         mail = self.env['mail.mail'].search([
             ('res_id', '=', build.id), ('model', '=', build._name),
         ], limit=1, order='id desc')
-        temp_path = os.path.join(TEMP_DIR, "%s.html" % self._testMethodName)
-        with open(temp_path, "w") as ftmp:
-            ftmp.write(mail.body or '')
+        if config.get('test_report_directory'):
+            fpath = os.path.join(config['test_report_directory'],
+                                 "%s.html" % self._testMethodName)
+            with open(fpath, "w") as ftmp:
+                ftmp.write(mail.body or '')
         return mail
 
     @mute_logger('odoo.addons.mail.models.mail_mail')
