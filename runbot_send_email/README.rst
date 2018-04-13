@@ -1,10 +1,12 @@
-.. image:: https://img.shields.io/badge/licence-AGPL--3-blue.svg
-    :alt: License: AGPL-3
+.. image:: https://img.shields.io/badge/license-AGPL--3-blue.png
+   :target: https://www.gnu.org/licenses/agpl
+   :alt: License: AGPL-3
 
+========================
 Runbot Send Email Result
 ========================
 
-This module sends the results of the RunBot builds through email, when there is a change of status, runbot send the notification to all followers of build, the notification has the following items:
+This addon sends the results of the Runbot builds through email, Runbot send the notification to all followers of build, the notification has the following items:
 
 * **General Info:** Contains the Status of build, Committer name, SHA Commit, Commit description. In this section runbot will indicate status changes of the build, showing color and icon related with such build status.
 
@@ -27,27 +29,52 @@ This module sends the results of the RunBot builds through email, when there is 
  .. image:: https://raw.githubusercontent.com/Vauxoo/runbot-addons/11.0/runbot_send_email/static/img/is.png
 
 Requirements:
--------------
+==============
 
-- `runbot` module.
+ * `runbot` module.
+
+Bug Tracker
+===========
+
+Bugs are tracked on `GitHub Issues
+<https://github.com/vauxoo/runbot-addons/issues>`_. In case of trouble, please
+check there if your issue has already been reported. If you spotted it first,
+help us smash it by providing detailed and welcomed feedback.
+
+Credits
+=======
+
+Images
+------
+
+* Odoo Community Association: `Icon <https://odoo-community.org/logo.png>`_.
 
 Contributors
 ------------
 
-* Luis Escobar <lescobar@vauxoo.com>
+* Jonathan Osorio <jonathan@vauxoo.com>
+* Moises Lopez <moylop260@vauxoo.com>
+
+Do not contact contributors directly about support or help with technical issues.
+
+Funders
+-------
+
+The development of this module has been financially supported by:
+
+* Vauxoo - http://www.vauxoo.com/
 
 Maintainer
 ----------
 
- .. image:: https://www.vauxoo.com/logo.png
-    :alt: Vauxoo
-    :target: https://vauxoo.com
+.. image:: https://odoo-community.org/logo.png
+   :alt: Odoo Community Association
+   :target: https://odoo-community.org
 
- This module is maintained by Vauxoo.
+This module is maintained by the OCA.
 
- a latinamerican company that provides training, coaching,
- development and implementation of enterprise management
- sytems and bases its entire operation strategy in the use
- of Open Source Software and its main product is odoo.
+OCA, or the Odoo Community Association, is a nonprofit organization whose
+mission is to support the collaborative development of Odoo features and
+promote its widespread use.
 
- To contribute to this module, please visit http://www.vauxoo.com.
+To contribute to this module, please visit https://odoo-community.org.
