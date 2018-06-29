@@ -10,23 +10,23 @@ This addon sends the results of the Runbot builds through email, Runbot send the
 
 * **General Info:** Contains the Status of build, Committer name, SHA Commit, Commit description. In this section runbot will indicate status changes of the build, showing color and icon related with such build status.
 
- .. image:: https://raw.githubusercontent.com/Vauxoo/runbot-addons/11.0/runbot_send_email/static/img/gi.png
+ .. figure:: ../runbot_send_email/static/img/gi.png
  
 * **System Message:** Contains a description of the status of the build with any suggestions if any issues are found.
 
- .. image:: https://raw.githubusercontent.com/Vauxoo/runbot-addons/11.0/runbot_send_email/static/img/sm.png
+ .. figure:: ../runbot_send_email/static/img/sm.png
 
 * **Debug:** Contains important information if you want to debug, access via ssh or logs.
 
- .. image:: https://raw.githubusercontent.com/Vauxoo/runbot-addons/11.0/runbot_send_email/static/img/dg.png
+ .. figure:: ../runbot_send_email/static/img/dg.png
 
 * **Documentation:** Contains the respective links to access the documentation on the runbot, or other topic associated.
 
- .. image:: https://raw.githubusercontent.com/Vauxoo/runbot-addons/11.0/runbot_send_email/static/img/dc.png
+ .. figure:: ../runbot_send_email/static/img/dc.png
 
 * **Issue:** Contains link to report any issues.
 
- .. image:: https://raw.githubusercontent.com/Vauxoo/runbot-addons/11.0/runbot_send_email/static/img/is.png
+ .. figure:: ../runbot_send_email/static/img/is.png
 
 How to follow a build or repository
 ------------------------------------
@@ -35,11 +35,11 @@ This addon allows to follow builds or repositories, for doing so need to be logg
 
 * **For follow/unfollow a repository.**
 
- .. image:: https://raw.githubusercontent.com/Vauxoo/runbot-addons/11.0/runbot_send_email/static/img/watch_repo.jpeg
+ .. figure:: ../runbot_send_email/static/img/watch_repo.jpeg
 
 * **For follow/unfollow a build.**
 
- .. image:: https://raw.githubusercontent.com/Vauxoo/runbot-addons/11.0/runbot_send_email/static/img/watch_build.png
+ .. figure:: ../runbot_send_email/static/img/watch_build.png
 
 Requirements:
 ==============
