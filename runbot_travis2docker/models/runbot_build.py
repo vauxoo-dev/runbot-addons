@@ -37,7 +37,6 @@ class RunbotBuild(models.Model):
     dockerfile_path = fields.Char()
     docker_image = fields.Char()
     docker_container = fields.Char()
-    uses_weblate = fields.Boolean(help='Synchronize with weblate', copy=False)
     docker_executed_commands = fields.Boolean(
         help='True: Executed "docker exec CONTAINER_BUILD custom_commands"',
         readonly=True, copy=False)
@@ -83,11 +82,18 @@ class RunbotBuild(models.Model):
             build._get_docker_run_cmd(), lock_path, log_path, cpu_limit=1200,
         )
 
-    def _job_21_coverage(self, build, lock_path, log_path):
+    def _job_21_coverage_html(self, build, lock_path, log_path):
         if not build.branch_id.repo_id.is_travis2docker_build:
-            return super(RunbotBuild, self)._job_21_coverage(
+            return super(RunbotBuild, self)._job_21_coverage_html(
                 build, lock_path, log_path)
-        _logger.info('docker build skipping job_21_coverage')
+        _logger.info('docker build skipping job_21_coverage_html')
+        return MAGIC_PID_RUN_NEXT_JOB
+
+    def _job_22_coverage_result(self, build, lock_path, log_path):
+        if not build.branch_id.repo_id.is_travis2docker_build:
+            return super(RunbotBuild, self)._job_22_coverage_result(
+                build, lock_path, log_path)
+        _logger.info('docker build skipping job_22_coverage_result')
         return MAGIC_PID_RUN_NEXT_JOB
 
     def _job_30_run(self, build, lock_path, log_path):
@@ -165,11 +171,11 @@ class RunbotBuild(models.Model):
 
     def _local_cleanup(self):
         builds = self.filtered('branch_id.repo_id.is_travis2docker_build')
-        super(RunbotBuild, self - builds)._local_cleanup()
-        for build in builds:
-            if build.docker_container:
-                subprocess.call(['docker', 'rm', '-f', build.docker_container])
-                subprocess.call(['docker', 'rmi', '-f', build.docker_image])
+        if self - builds:
+            super(RunbotBuild, self - builds)._local_cleanup()
+        for build in builds.filtered('docker_container'):
+            subprocess.call(['docker', 'rm', '-vf', build.docker_container])
+            subprocess.call(['docker', 'rmi', '-f', build.docker_image])
 
     def _get_ssh_keys(self):
         self.ensure_one()
@@ -233,23 +239,6 @@ class RunbotBuild(models.Model):
             self.repo_id.id
         )[1].split('/')[-1]
         wl_cmd_env = []
-        if self.uses_weblate and 'refs/pull' not in self.branch_id.name:
-            wl_cmd_env.extend([
-                '-e', 'WEBLATE=1',
-                '-e', ('WEBLATE_TOKEN=%s' %
-                       self.branch_id.repo_id.weblate_token),
-                '-e', ('WEBLATE_HOST=%s' %
-                       self.branch_id.repo_id.weblate_url),
-                '-e', ('WEBLATE_SSH=%s' %
-                       self.branch_id.repo_id.weblate_ssh)])
-            if self.branch_id.repo_id.weblate_languages:
-                wl_cmd_env.extend([
-                    '-e', 'LANG_ALLOWED=%s' %
-                    self.branch_id.repo_id.weblate_languages
-                ])
-            if self.branch_id.repo_id.token:
-                wl_cmd_env.extend([
-                    '-e', 'GITHUB_TOKEN=%s' % self.branch_id.repo_id.token])
         cmd = [
             'docker', 'run',
             '-e', 'INSTANCE_ALIVE=1',
