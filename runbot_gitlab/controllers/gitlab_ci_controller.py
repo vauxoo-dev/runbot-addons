@@ -1,4 +1,4 @@
-# Copyright <2017> <Vauxoo info@vauxoo.com>
+ # Copyright <2017> <Vauxoo info@vauxoo.com>
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl).
 
 import logging
@@ -25,33 +25,41 @@ class RunbotCIController(RunbotHook):
             project = data.get('project') or data.get('repository')
             ssh_url = project.get('git_ssh_url') or project.get('ssh_url')
             http_url = project.get('git_http_url') or project.get('http_url')
-            if event == "build":
-                # The "jobs" webhook only are triggered from from dev projects
-                # but we need to match with stable one
-                ssh_url = ssh_url.replace("-dev/", "/")
-                http_url = http_url.replace("-dev/", "/")
             repo_domain = ['|', '|', ('name', '=', ssh_url),
                            ('name', '=', http_url),
-                           ('name', '=', http_url.rstrip('.git'))]
-            repo = request.env['runbot.repo'].sudo().search(repo_domain,
-                                                            limit=1)
+                           ('name', '=', http_url.rstrip('.git')),
+                           ]
+            repo = request.env['runbot.repo'].sudo().search(repo_domain, limit=1)
             if repo and event != 'build':
                 return self.hook(repo.id, **post)
             if (event == "build" and data["build_name"] in ("build_deployv", "build_docker") and
-                data["build_status"] == "success" and repo and repo.is_t2d_deployv):
+                data["build_status"] == "success" or True):
+                # The "jobs" webhook only are triggered from from dev projects
+                # but we need to match with stable one
+                ssh_url_stb = ssh_url.replace("-dev/", "/")
+                http_url_stb = http_url.replace("-dev/", "/")
+                repo_domain = [
+                    '|', '|', ('name', '=', ssh_url_stb),
+                    ('name', '=', http_url_stb),
+                    ('name', '=', http_url_stb.rstrip('.git')),
+                ]
+                repo |= request.env['runbot.repo'].sudo().search(repo_domain, limit=1)
+                repo = repo.filtered("is_t2d_deployv")
+                if not repo:
+                    return ""
                 build = request.env["runbot.build"].sudo()
                 query = """SELECT id FROM runbot_build WHERE id IN (
                     SELECT MAX(id) AS build_id
                     FROM runbot_build
-                    WHERE repo_id = %s
+                    WHERE repo_id IN %s
                       AND name = %s
                     GROUP BY branch_id)
                 AND state='done' AND result='skipped' AND deployv_image_built IS NOT TRUE
                 """
-                request.env.cr.execute(query, (repo.id, data["sha"]))
+                request.env.cr.execute(query, (tuple(repo.ids), data["sha"]))
                 builds_waiting_image_ids = [i[0] for i in request.env.cr.fetchall()]
                 if not builds_waiting_image_ids:
-                    _logger.info("Build of repo_id=%s and sha=%s are not waiting for image built", repo.id, data["sha"])
+                    _logger.info("Build of repo_ids=%s and sha=%s are not waiting for image built", repo.ids, data["sha"])
                     return
                 builds_waiting_image = build.browse(builds_waiting_image_ids)
                 msg = "Image built so rebuild runbot job"
