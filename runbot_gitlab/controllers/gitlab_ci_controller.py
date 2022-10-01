@@ -39,11 +39,26 @@ class RunbotCIController(RunbotHook):
                 return self.hook(repo.id, **post)
             if (event == "build" and data["build_name"] in ("build_deployv", "build_docker") and
                 data["build_status"] == "success" and repo and repo.is_t2d_deployv):
-                build_domain = [("repo_id", "=", repo.id), ("name", "=", data["sha"])]
-                build = request.env["runbot.build"].sudo().search(build_domain, order='id DESC', limit=1)
-                if build:
-                    build.write({"deployv_image_built": True})
-                    forced_builds = build._force("Image built so rebuild runbot job")
+                build = request.env["runbot.build"].sudo()
+                query = """SELECT id FROM runbot_build WHERE id IN (
+                    SELECT MAX(id) AS build_id
+                    FROM runbot_build
+                    WHERE repo_id = %s
+                      AND name = %s
+                    GROUP BY branch_id)
+                AND state='done' AND result='skipped' AND deployv_image_built IS NOT TRUE
+                """
+                request.env.cr.execute(query, (repo.id, data["sha"]))
+                builds_waiting_image_ids = [i[0] for i in request.env.cr.fetchall()]
+                if not builds_waiting_image_ids:
+                    _logger.info("Build of repo_id=%s and sha=%s are not waiting for image built", repo.id, data["sha"])
+                    return
+                builds_waiting_image = build.browse(builds_waiting_image_ids)
+                msg = "Image built so rebuild runbot job"
+                builds_waiting_image.write({"deployv_image_built": True})
+                for build2force in builds_waiting_image:
+                    _logger.info("%s build.id=%s", msg, build2force.id)
+                    forced_builds = build2force._force(msg)
                     if forced_builds:
                         forced_builds.write({"deployv_image_built": True})
         return ""
