@@ -232,7 +232,12 @@ class RunbotBuild(models.Model):
                 continue
             time.sleep(10)  # Waiting container start
             build.docker_executed_commands = True
-            subprocess.call([
+            if build.repo_id.is_t2d_deployv:
+                # Deployv use .ssh as volume it needs to change the owner to be able to connect
+                subprocess.call([
+                    "docker", "exec", "-d", "--user", "root", build.docker_container, "chown", "-R", "odoo:odoo", "/home/odoo/.ssh",
+                ])
+            exit_code = subprocess.call([
                 'docker', 'exec', '-d', '--user', 'root',
                 build.docker_container, '/etc/init.d/ssh', 'start'])
             ssh_keys = build._get_ssh_keys() or ''
@@ -247,11 +252,6 @@ class RunbotBuild(models.Model):
                     build.docker_container,
                     "bash", "-c", "echo '%(keys)s' | tee -a '%(dir)s'" % dict(
                         keys=ssh_keys, dir="/home/odoo/.ssh/authorized_keys"),
-                ])
-            if build.repo_id.is_t2d_deployv:
-                # Deployv use .ssh as volume it needs to change the owner to be able to connect
-                subprocess.call([
-                    "docker", "exec", "-d", "--user", "root", build.docker_container, "chown", "-R", "odoo:odoo", "/home/odoo/.ssh",
                 ])
             RunbotBuild._open_url(build.port, build.host)
         return res
