@@ -64,9 +64,10 @@ class RunbotCIController(RunbotHook):
                 builds_waiting_image = build.browse(builds_waiting_image_ids)
                 msg = "Image built so rebuild runbot job"
                 builds_waiting_image.write({"deployv_image_built": True})
+                builds_waiting_image._logger(msg)
                 for build2force in builds_waiting_image:
-                    _logger.info("%s build.id=%s", msg, build2force.id)
-                    forced_builds = build2force._force(msg)
-                    if forced_builds:
-                        forced_builds.write({"deployv_image_built": True})
+                    forced_build = build2force._force(msg)
+                    if forced_build and forced_build != build2force:
+                        forced_build.write({"deployv_image_built": True})
+                        forced_build._logger(msg)
         return ""
