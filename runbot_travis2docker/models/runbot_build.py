@@ -209,6 +209,9 @@ class RunbotBuild(models.Model):
         if self - builds:
             super(RunbotBuild, self - builds)._local_cleanup()
         for build in builds.filtered('docker_container'):
+            logs = subprocess.check_output(['docker', 'logs', build.docker_container])
+            with open(os.path.join(build._path(), "logs", "docker.log"), "wb") as f_docker_log:
+                f_docker_log.write(logs[-200:])
             subprocess.call(['docker', 'rm', '-vf', build.docker_container])
             subprocess.call(['docker', 'rmi', '-f', build.docker_image])
 
