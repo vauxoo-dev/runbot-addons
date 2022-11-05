@@ -60,7 +60,7 @@ class RunbotBuild(models.Model):
 
     def _get_docker_container(self):
         self.ensure_one()
-        return "build_%d" % (self.sequence)
+        return "build_%d" % (self.id)
 
     def _job_10_test_base(self, build, lock_path, log_path):
         if not build.branch_id.repo_id.is_travis2docker_build:
