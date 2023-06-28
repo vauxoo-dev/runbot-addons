@@ -1,0 +1,102 @@
+from unittest.mock import Mock, patch
+
+from ..api import ForwardbotGitlabClient
+from .common import ForwardBotCase, MockResponse
+
+
+class TestMergeRequest(ForwardBotCase):
+    def test_obtain_from_event_create(self):
+        payload = self._gen_payload(50)
+        merge_request, created = self.model_mr.gitlab_obtain_from_event(payload)
+
+        self.assertMergeRequestEquals(payload, merge_request)
+        self.assertTrue(created)
+
+    def test_obtain_from_event_read(self):
+        payload = self._gen_payload(56)
+
+        merge_request, created = self.model_mr.gitlab_obtain_from_event(payload)
+        self.assertTrue(created)
+
+        read_mr, created = self.model_mr.gitlab_obtain_from_event(payload)
+        self.assertEqual(merge_request, read_mr)
+        self.assertFalse(created)
+
+    def test_create_from_event_bad_payload(self):
+        bad_payload = {
+            "object_attributes": {
+                "id": 99,
+                "target_branch": "master",
+            }
+        }
+
+        with self.assertRaises(KeyError):
+            self.env["fwbot.merge.request"].gitlab_obtain_from_event(bad_payload)
+
+    def test_create_forward_port(self):
+        merge_request, _ = self.model_mr.gitlab_obtain_from_event(self._gen_payload(80))
+        merge_request.create_forward_port()
+
+        self.assertEqual("11.0", merge_request.target_branch)
+        self.assertEqual("12.0", merge_request.forward_port_id.target_branch)
+
+    def test_forward_port_not_repeated(self):
+        merge_request, _ = self.model_mr.gitlab_obtain_from_event(self._gen_payload(85))
+
+        original_id = merge_request.create_forward_port().id
+        self.assertTrue(original_id)
+
+        second_call_id = merge_request.create_forward_port().id
+        self.assertEqual(original_id, second_call_id)
+
+    @patch(f"{__name__}.ForwardbotGitlabClient.put")
+    def test_prune_merge_requests_valid_target(self, mock: Mock):
+        mock.side_effect = lambda: MockResponse()
+
+        merge_request, _ = self.model_mr.gitlab_obtain_from_event(self._gen_payload(99))
+        merge_request.target_repository_id.write(
+            {"stable_branches": "11.0,12.0,13.0", "url": "https://gitlab.local", "token": "hello"}
+        )
+
+        self.assertFalse(merge_request.last_processed)
+        merge_request.prune_merge_requests()
+        self.assertTrue(merge_request.last_processed)
+
+        self.assertEqual(1, mock.call_count)
+        self.assertFalse(mock.call_args.kwargs["json"]["remove_source_branch"])
+        self.assertEqual(
+            f"https://gitlab.local/api/v4/projects/18/merge_requests/{merge_request.internal_id}", mock.call_args[0][0]
+        )
+
+    def test_prune_merge_request_invalid_target(self):
+        merge_request, _ = self.model_mr.gitlab_obtain_from_event(self._gen_payload(99, target_branch="rando"))
+        merge_request.target_repository_id.stable_branches = "15.0"
+
+        self.assertEqual(1, self.env["fwbot.merge.request"].search_count([("id", "=", merge_request.id)]))
+        merge_request.prune_merge_requests()
+        self.assertEqual(0, self.env["fwbot.merge.request"].search_count([("id", "=", merge_request.id)]))
+
+    @patch(f"{__name__}.ForwardbotGitlabClient.send")
+    @patch(f"{__name__}.ForwardbotGitlabClient.delete")
+    @patch(f"{__name__}.ForwardbotGitlabClient.post")
+    def test_process_pending_for_forward_ports(self, mock: Mock, delete_mock: Mock, push_mock: Mock):
+        mock.side_effect = lambda *args, **kwargs: MockResponse(status_code=200)
+        delete_mock.side_effect = lambda *args, **kwargs: MockResponse(status_code=200)
+        push_mock.side_effect = lambda *args, **kwargs: MockResponse(
+            status_code=200, json_data={"id": 567, "iid": 889, "state": "opened"}
+        )
+
+        merge_request, _ = self.model_mr.gitlab_obtain_from_event(self._gen_payload(753, target_branch="saas-17"))
+        merge_request.state = "merged"
+
+        repo_data = {"url": "https://git.local", "token": "trusty", "stable_branches": "15.0,saas-17,master"}
+        merge_request.target_repository_id.write(repo_data)
+        merge_request.source_repository_id.write(repo_data)
+
+        merge_request.process_pending_for_forward_ports()
+
+        self.assertEqual(1, mock.call_count)
+        self.assertEqual(567, merge_request.forward_port_id.global_id)
+        self.assertEqual(889, merge_request.forward_port_id.internal_id)
+        self.assertEqual("opened", merge_request.forward_port_id.state)
+        self.assertEqual("master", merge_request.forward_port_id.target_branch)
