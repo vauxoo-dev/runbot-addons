@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo>
+    <record id="ir_cron_process_pending_for_fw" model="ir.cron">
+        <field name="name">Forwardbot: Process MRs pending a forward port</field>
+        <field name="model_id" ref="model_forwardbot_gitlab_merge_request"/>
+        <field name="state">code</field>
+        <field name="code">model.process_pending_for_forward_ports()</field>
+        <field name='interval_number'>1</field>
+        <field name='interval_type'>days</field>
+        <field name="numbercall">-1</field>
+    </record>
+</odoo>
