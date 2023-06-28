@@ -10,7 +10,10 @@ services:
       - "8069"
       - "8072"
     volumes:
+      - $RUNBOT_PATH:/home/runbot/instance/dependencies/runbot-addons
       - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - WITH_LOGFILE=True
   db:
     image: postgres:13
     environment:

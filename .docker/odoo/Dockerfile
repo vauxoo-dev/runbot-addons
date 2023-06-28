@@ -3,7 +3,7 @@ FROM ubuntu:18.04
 RUN apt update; \
     DEBIAN_FRONTEND=noninteractive apt -y --no-install-recommends install \
       ca-certificates curl gnupg lsb-release python3-pip python3-dev python3-lxml libsasl2-dev libldap2-dev ssh \
-      libjpeg-dev libpq-dev libssl1.0-dev build-essential python3-matplotlib nodejs-dev node-gyp npm nginx git locales;  \
+      libjpeg-dev libpq-dev libssl1.0-dev build-essential python3-matplotlib nodejs-dev node-gyp npm git locales;  \
     locale-gen en_US.UTF-8; \
     mkdir -p /etc/apt/keyrings; \
     curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg; \
@@ -12,13 +12,10 @@ RUN apt update; \
       tee /etc/apt/sources.list.d/docker.list > /dev/null; \
     apt update; \
     apt -y --no-install-recommends install docker-ce; \
-    useradd -m runbot; \
-    chown -R runbot:runbot /var/lib/nginx; \
-    chown -R runbot:runbot /var/log/nginx;
+    useradd -m runbot;
 
 USER runbot
 RUN mkdir -p ~/instance; \
-    git clone -b 11.0 --depth=1  https://github.com/Vauxoo/runbot-addons.git ~/instance/dependencies/runbot-addons; \
     git clone -b 11.0-vauxoo --depth=1 https://github.com/Vauxoo/runbot.git ~/instance/dependencies/odoo-extra; \
     git clone -b 11.0 --depth=1 https://github.com/odoo/odoo.git ~/instance/odoo; \
     git config --global user.name runbot; \
@@ -44,9 +41,9 @@ ENV LC_ALL en_US.UTF-8
 USER runbot
 COPY ./entrypoint.sh /
 COPY ./wait-for-sql /usr/local/bin/
-COPY --chown=runbot:runbot ./.openerp_serverrc $HOME/
+COPY --chown=runbot:runbot ./.openerp_serverrc /home/runbot/.openerp_serverrc
 
-ENV ODOO_RC=$HOME/.openerp_serverrc
+ENV ODOO_RC=/home/runbot/.openerp_serverrc
 
 ENTRYPOINT ["/entrypoint.sh"]
 CMD ["runbot"]

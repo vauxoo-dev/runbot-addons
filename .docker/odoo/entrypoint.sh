@@ -2,6 +2,10 @@
 
 set -e
 
+if [[ -z "${WITH_LOGFILE}" ]] ; then
+  sed -i '/logfile[[:space:]]*=/d' "${ODOO_RC}"
+fi
+
 if [[ "$1" == "runbot" ]] ; then
   shift
   wait-for-sql

@@ -2,7 +2,8 @@
 addons_path=${HOME}/instance/dependencies/runbot-addons,
     ${HOME}/instance/dependencies/odoo-extra,
     ${HOME}/instance/odoo/addons,
-    ${HOME}/instance/odoo/odoo/addons
+    ${HOME}/instance/odoo/odoo/addons,
+    ${HOME}/instance/dependencies/
 db_host = db
 db_user = odoo
 db_password = odoo

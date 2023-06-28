@@ -16,6 +16,13 @@ def main():
         type=str,
         help="Domain name for the Runbot instance",
     )
+    parser.add_argument(
+        "-p",
+        "--path",
+        default=getcwd(),
+        type=str,
+        help="Path to the development repository (runbot-addons) to be used",
+    )
     args = parser.parse_args()
 
     if not which("envsubst"):
@@ -27,14 +34,14 @@ def main():
         raise SystemExit("Required group 'docker' not found in the system")
 
     run(
-        f"DOCKER_GID={docker_grp.gr_gid} RUNBOT_NAME={args.domain} envsubst < compose.yaml.template > compose.yaml",
+        f"DOCKER_GID={docker_grp.gr_gid} RUNBOT_NAME={args.domain} RUNBOT_PATH={args.path} "
+        "envsubst < compose.yaml.template > compose.yaml",
         cwd=join(getcwd(), ".docker"),
         shell=True,
     )
 
     print(
         "Success. You can now start your Runbot instance with 'docker compose -f .docker/compose.yaml up'."
-        "\nTODO: Run the following command in the runbot container: 'chown runbot:runbot /var/run/docker.sock && docker login quay.io'"
     )
 
 
