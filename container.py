@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+import platform
+
 from argparse import ArgumentParser
 from grp import getgrnam
 from os import getcwd
@@ -21,13 +23,15 @@ def main():
     if not which("envsubst"):
         raise SystemExit("Required executable 'envsubst' not found in the system")
 
+    prefix = ""
     try:
-        docker_grp = getgrnam("docker")
+        if platform.system() == 'Linux':
+            prefix = f"DOCKER_GID={getgrnam('docker').gr_gid}"
     except KeyError:
         raise SystemExit("Required group 'docker' not found in the system")
 
     run(
-        f"DOCKER_GID={docker_grp.gr_gid} RUNBOT_NAME={args.domain} envsubst < compose.yaml.template > compose.yaml",
+        f"{prefix} RUNBOT_NAME={args.domain} envsubst < compose.yaml.template > compose.yaml",
         cwd=join(getcwd(), ".docker"),
         shell=True,
     )
