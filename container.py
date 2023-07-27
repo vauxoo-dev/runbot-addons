@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
+# pylint:disable=print-used
 import platform
-
 from argparse import ArgumentParser
 from grp import getgrnam
 from os import getcwd
@@ -25,7 +25,7 @@ def main():
 
     prefix = ""
     try:
-        if platform.system() == 'Linux':
+        if platform.system() == "Linux":
             prefix = f"DOCKER_GID={getgrnam('docker').gr_gid}"
     except KeyError:
         raise SystemExit("Required group 'docker' not found in the system")
@@ -34,11 +34,13 @@ def main():
         f"{prefix} RUNBOT_NAME={args.domain} envsubst < compose.yaml.template > compose.yaml",
         cwd=join(getcwd(), ".docker"),
         shell=True,
+        check=True,
     )
 
     print(
         "Success. You can now start your Runbot instance with 'docker compose -f .docker/compose.yaml up'."
-        "\nTODO: Run the following command in the runbot container: 'chown runbot:runbot /var/run/docker.sock && docker login quay.io'"
+        "\nTODO: Run the following command in the runbot container: 'chown runbot:runbot /var/run/docker.sock "
+        "&& docker login quay.io'"
     )
 
 
