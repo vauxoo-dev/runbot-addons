@@ -10,6 +10,15 @@ from ..api import ForwardbotGitlabClient, get_api_data
 
 _logger = logging.getLogger(__name__)
 
+# Type annotations not supported on Odoo 11. This patch lets run code on both Odoo 11 and modern versions like 16.
+try:
+    from odoo.api import multi
+except ImportError:
+    def multi():
+        def decorator(func):
+            return func
+        return decorator
+
 
 class Repository(models.Model):
     _name = "fwbot.repository"
@@ -38,6 +47,7 @@ class Repository(models.Model):
         parsed_url = urlparse(self.url)
         return f"{parsed_url.scheme}://{parsed_url.netloc}"
 
+    @multi
     def get_api_data(self) -> Tuple[str, str]:
         self.ensure_one()
         url, token = self.base_url, self.token
@@ -65,6 +75,7 @@ class Repository(models.Model):
 
         return -1.0
 
+    @multi
     def get_next_branch(self, branch_name: str) -> str:
         """Return the branch that follows the current one or an empty string if no branch exists after the
         current one. Only branches that exist in the current repository will be returned.
@@ -82,32 +93,35 @@ class Repository(models.Model):
         except (IndexError, ValueError):
             return ""
 
+    @multi
     def update_branches(self, branches: List[str]):
         branches.sort(key=self.get_branch_version)
         self.stable_branches = ",".join(branches)
 
+    @multi
     def get_stable_branches(self) -> List[str]:
         self.ensure_one()
         platform_method = getattr(self, f"_{self.platform}_get_stable_branches")
 
         return platform_method()
 
+    @multi
     def _gitlab_get_stable_branches(self) -> List[str]:
-        self.ensure_one()
         url, token = self.get_api_data()
         response = ForwardbotGitlabClient(url, token, self.timeout).get_protected_branches(self.remote_id)
         response.raise_for_status()
 
         return [branch["name"] for branch in response.json()]
 
+    @multi
     def clone_branch(self, source: str, dest: str) -> Response:
         self.ensure_one()
         platform_method = getattr(self, f"_{self.platform}_clone_branch")
 
         return platform_method(source, dest)
 
+    @multi
     def _gitlab_clone_branch(self, source: str, dest: str):
-        self.ensure_one()
         url, token = self.get_api_data()
 
         return ForwardbotGitlabClient(url, token, self.timeout).create_branch(self.remote_id, dest, source)

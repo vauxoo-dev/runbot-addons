@@ -4,10 +4,19 @@ from typing import Any, Dict, Sequence, Tuple
 from odoo import api, fields, models
 from requests import Response
 
-from ..api import ForwardbotGitlabClient, get_api_data
+from ..api import ForwardbotGitlabClient
 from .repository import Repository
 
 _logger = logging.getLogger(__name__)
+
+# Type annotations not supported on Odoo 11. This patch lets run code on both Odoo 11 and modern versions like 16.
+try:
+    from odoo.api import multi
+except ImportError:
+    def multi():
+        def decorator(func):
+            return func
+        return decorator
 
 
 class MergeRequest(models.Model):
@@ -45,6 +54,7 @@ class MergeRequest(models.Model):
         ),
     ]
 
+    @multi
     def create_forward_port(self) -> "MergeRequest":
         self.ensure_one()
         if self.forward_port_id:
@@ -72,6 +82,7 @@ class MergeRequest(models.Model):
 
         return self.forward_port_id
 
+    @multi
     def update_from_object_attributes(self, object_attributes: Dict[str, Any]):
         self.ensure_one()
         self.write(
@@ -150,7 +161,6 @@ class MergeRequest(models.Model):
         return platform_method()
 
     def _gitlab_remove_source_branch(self):
-        self.ensure_one()
         url, token = self.source_repository_id.get_api_data()
         response = ForwardbotGitlabClient(
             url,
@@ -159,28 +169,30 @@ class MergeRequest(models.Model):
         if response.status_code != 404:
             response.raise_for_status()
 
+    @multi
     def update_merge_request(self, payload: Dict):
         self.ensure_one()
         platform_method = getattr(self, f"_{self.target_repository_id.platform}_update_merge_request")
 
         return platform_method(payload)
 
+    @multi
     def _gitlab_update_merge_request(self, payload: Dict):
-        self.ensure_one()
         url, token = self.target_repository_id.get_api_data()
         response = ForwardbotGitlabClient(url, token, self.timeout).update_merge_request(
             self.target_repository_id.remote_id, self.internal_id, payload
         )
         response.raise_for_status()
 
+    @multi
     def push_forward_port(self, forward_port: "MergeRequest"):
         self.ensure_one()
         platform_method = getattr(self, f"_{self.target_repository_id.platform}_push_forward_port")
 
         return platform_method(forward_port)
 
+    @multi
     def _gitlab_push_forward_port(self, forward_port: "MergeRequest") -> Response:
-        self.ensure_one()
         url, token = self.target_repository_id.get_api_data()
 
         return ForwardbotGitlabClient(url, token, self.timeout).push_forward_port(forward_port)
