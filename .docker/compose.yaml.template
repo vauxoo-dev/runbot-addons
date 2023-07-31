@@ -4,8 +4,6 @@ services:
     build: odoo
     depends_on:
       - db
-    group_add:
-      - "$DOCKER_GID"
     ports:
       - "8069"
       - "8072"
