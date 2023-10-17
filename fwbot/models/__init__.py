@@ -1,1 +1,3 @@
-from . import remote_mixin, merge_request, repository  # isort:skip
+from . import fwbot_remote_mixin
+from . import fwbot_merge_request
+from . import fwbot_repository

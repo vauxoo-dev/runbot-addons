@@ -1,15 +1,11 @@
 import random
-from typing import Dict
 
 from odoo.tests.common import TransactionCase
-
-from ..models.merge_request import MergeRequest
-from ..models.repository import Repository
 
 
 class MockResponse:
     def __init__(self, **kwargs):
-        self.json_data: Dict = {}
+        self.json_data = {}
         self.__dict__.update(kwargs)
 
     def json(self):
@@ -27,8 +23,8 @@ class ForwardBotCase(TransactionCase):
 
     def setUp(self):
         super().setUp()
-        self.model_mr: MergeRequest = self.env["fwbot.merge.request"]
-        self.model_repo: Repository = self.env["fwbot.repository"]
+        self.model_mr = self.env["fwbot.merge.request"]
+        self.model_repo = self.env["fwbot.repository"]
         self.env["fwbot.repository"].create(
             {
                 "name": "addons/fwbot",
@@ -54,7 +50,7 @@ class ForwardBotCase(TransactionCase):
         target_url="https://git.vauxoo.local/addons/fwbot",
         target_branch="11.0",
         event_type="merge_request",
-    ) -> Dict:
+    ):
         return {
             "object_kind": event_type,
             "event_type": event_type,
@@ -74,7 +70,7 @@ class ForwardBotCase(TransactionCase):
             },
         }
 
-    def assertMergeRequestEquals(self, data: Dict, record):
+    def assertMergeRequestEqual(self, data, record):  # pylint: disable=invalid-name
         data = data["object_attributes"]
 
         self.assertEqual(data["state"], record.state)

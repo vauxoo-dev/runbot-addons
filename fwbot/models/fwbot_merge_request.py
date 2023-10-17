@@ -1,12 +1,10 @@
 import logging
 import re
-from typing import Any, Dict, List, Sequence, Tuple
 
-from odoo import api, fields, models
-from requests import Response
+from odoo import _, api, fields, models
+from odoo.exceptions import ValidationError
 
 from ..api import ForwardbotGitlabClient
-from .repository import Repository, multi
 
 _logger = logging.getLogger(__name__)
 _footer_regex = re.compile(r"This is an automatic forward port for !\d+$")
@@ -14,19 +12,19 @@ _footer_regex = re.compile(r"This is an automatic forward port for !\d+$")
 
 class MergeRequest(models.Model):
     _name = "fwbot.merge.request"
-    _description = "Merge Request (fwbot)"
     _inherit = "fwbot.remote.mixin"
+    _description = "Merge Request for fwbot"
 
     name = fields.Char(help="Merge Request Title", required=True)
     description = fields.Text()
     global_id = fields.Integer(help="ID for this MR on the remote server. Unique across all projects")
     internal_id = fields.Integer(help="Internal ID. Unique inside the target project.")
     source_branch = fields.Char(required=True)
-    source_repository_id: Repository = fields.Many2one("fwbot.repository", required=True)
+    source_repository_id = fields.Many2one("fwbot.repository", required=True)
     target_branch = fields.Char(required=True)
-    target_repository_id: Repository = fields.Many2one("fwbot.repository", required=True)
+    target_repository_id = fields.Many2one("fwbot.repository", required=True)
     state = fields.Selection(
-        [
+        selection=[
             ("pending", "Pending"),
             ("opened", "Opened"),
             ("closed", "Closed"),
@@ -36,7 +34,7 @@ class MergeRequest(models.Model):
         default="pending",
         required=True,
     )
-    forward_port_id: "MergeRequest" = fields.Many2one("fwbot.merge.request")
+    forward_port_id = fields.Many2one("fwbot.merge.request")
     processed = fields.Boolean(default=False)
 
     _sql_constraints = [
@@ -47,23 +45,19 @@ class MergeRequest(models.Model):
         ),
     ]
 
-    @multi
-    def create_forward_port(self) -> "MergeRequest":
+    def create_forward_port(self):
         self.ensure_one()
         if self.forward_port_id:
             return self.forward_port_id
 
         forward_branch = self.target_repository_id.get_next_branch(self.target_branch)
         if not forward_branch:
-            raise ValueError("can't create forward port, missing forward branch")
+            raise ValidationError(_("can't create forward port, missing forward branch"))
 
         source_branch = f"{forward_branch}-forward{self.internal_id}-fwb{self.id}"
         name = self.name
         if not self.name.startswith("[FW]"):
-            if self.name.startswith("["):
-                name = f"[FW]{name}"
-            else:
-                name = f"[FW] {name}"
+            name = f"[FW]{name}" if self.name.startswith("[") else f"[FW] {name}"
 
         description = self.description
         if _footer_regex.search(description):
@@ -87,8 +81,7 @@ class MergeRequest(models.Model):
 
         return self.forward_port_id
 
-    @multi
-    def update_from_object_attributes(self, object_attributes: Dict[str, Any]):
+    def update_from_object_attributes(self, object_attributes):
         self.ensure_one()
         self.write(
             {
@@ -101,16 +94,13 @@ class MergeRequest(models.Model):
         )
 
     @api.model
-    def validate_object_attributes(self, object_attributes: Dict):
-        for field in self.required_merge_request_fields:
-            if not object_attributes.get(field):
-                raise ValueError(f"missing field object_attributes.{field}")
-
-    @api.model
-    def gitlab_obtain_from_event(self, data: Dict) -> Tuple["MergeRequest", bool]:
+    def gitlab_obtain_from_event(self, data):
         """Obtain (search and create if not found) a record based on the data
         provided by a Merge Request event as described by Gitlab on:
         https://docs.gitlab.com/ee/user/project/integrations/webhook_events.html#merge-request-events
+
+        :return: Tuple consisting of a merge request and a boolean which states whether the merge request
+        was created or it already existed (true if it did not exist and was created).
         """
         data_object = data["object_attributes"]
 
@@ -159,35 +149,30 @@ class MergeRequest(models.Model):
             True,
         )
 
-    @multi
-    def update_merge_request(self, payload: Dict):
+    def update_merge_request(self, payload):
         self.ensure_one()
         platform_method = getattr(self, f"_{self.target_repository_id.platform}_update_merge_request")
 
         return platform_method(payload)
 
-    @multi
-    def _gitlab_update_merge_request(self, payload: Dict):
+    def _gitlab_update_merge_request(self, payload):
         url, token = self.target_repository_id.get_api_data()
         response = ForwardbotGitlabClient(url, token, self.timeout).update_merge_request(
             self.target_repository_id.remote_id, self.internal_id, payload
         )
         response.raise_for_status()
 
-    @multi
-    def push_forward_port(self, forward_port: "MergeRequest"):
+    def push_forward_port(self, forward_port):
         self.ensure_one()
         platform_method = getattr(self, f"_{self.target_repository_id.platform}_push_forward_port")
 
         return platform_method(forward_port)
 
-    @multi
-    def _gitlab_push_forward_port(self, forward_port: "MergeRequest") -> Response:
+    def _gitlab_push_forward_port(self, forward_port):
         url, token = self.target_repository_id.get_api_data()
         return ForwardbotGitlabClient(url, token, self.timeout).push_forward_port(forward_port)
 
-    @multi
-    def get_merge_commits(self) -> List:
+    def get_merge_commits(self):
         self.ensure_one()
         platform_method = getattr(self, f"_{self.target_repository_id.platform}_get_merge_commits")
 
@@ -202,7 +187,6 @@ class MergeRequest(models.Model):
 
         return response.json()
 
-    @multi
     def cherry_pick(self, sha: str) -> bool:
         """Apply the given commit (cherry-pick) to the record's source branch"""
         self.ensure_one()
@@ -210,7 +194,6 @@ class MergeRequest(models.Model):
 
         return platform_method(sha)
 
-    @multi
     def _gitlab_cherry_pick(self, sha: str) -> bool:
         url, token = self.target_repository_id.get_api_data()
         response = ForwardbotGitlabClient(url, token, self.timeout).cherry_pick(
@@ -244,16 +227,16 @@ class MergeRequest(models.Model):
         auto_commit=False,
         limit=50,
         timeout=10,
-        states: Sequence[str] = None,
+        states=None,
     ):
         if states is None:
             states = ["merged"]
 
-        pending_for_fw: MergeRequest = self.search(
+        pending_for_fw = self.search(
             [
                 ("processed", "=", False),
                 ("state", "in", states),
-                ("platform", "=", "gitlab"),
+                ("target_repository_id.platform", "=", "gitlab"),
             ],
             limit=limit,
             order="id",
@@ -264,7 +247,7 @@ class MergeRequest(models.Model):
 
         for merge_request in pending_for_fw:
             try:
-                merge_request = merge_request.with_context({"timeout": timeout})
+                merge_request = merge_request.with_context(timeout=timeout)
                 merge_request.create_forward_port()
                 forward_port = merge_request.forward_port_id
                 _logger.info("Forward port %s created", forward_port)

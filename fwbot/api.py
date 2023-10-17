@@ -1,11 +1,7 @@
 import re
-from typing import TYPE_CHECKING, Dict
-from urllib.parse import quote, urljoin
+from urllib.parse import urljoin
 
-from requests import Request, Response, Session
-
-if TYPE_CHECKING:
-    from .models.merge_request import MergeRequest
+from requests import Request, Session
 
 _footer_regex = re.compile(r"This is an automatic forward port for !\d+$")
 
@@ -27,14 +23,14 @@ class ForwardbotGitlabClient(Session):
         self._timeout = timeout
         self.headers.update({"Authorization": f"Bearer {token}"})
 
-    def request(self, *args, **kwargs) -> Response:
+    def request(self, *args, **kwargs):
         kwargs.setdefault("timeout", self._timeout)
         return super().request(*args, **kwargs)
 
-    def get_protected_branches(self, project_id: int) -> Response:
+    def get_protected_branches(self, project_id: int):
         return self.get(urljoin(self._url, f"projects/{project_id}/protected_branches"))
 
-    def push_forward_port(self, merge_request: "MergeRequest") -> Response:
+    def push_forward_port(self, merge_request):
         forward_port = merge_request.forward_port_id
         request = Request(
             "POST",
@@ -55,13 +51,13 @@ class ForwardbotGitlabClient(Session):
 
         return self.send(prepared_request, timeout=self._timeout)
 
-    def update_merge_request(self, project_id: int, merge_iid: int, payload: Dict) -> Response:
+    def update_merge_request(self, project_id: int, merge_iid: int, payload):
         return self.put(
             urljoin(self._url, f"projects/{project_id}/merge_requests/{merge_iid}"),
             json=payload,
         )
 
-    def create_branch(self, project_id: int, name: str, ref: str) -> Response:
+    def create_branch(self, project_id: int, name: str, ref: str):
         return self.post(
             urljoin(self._url, f"projects/{project_id}/repository/branches"),
             json={"branch": name, "ref": ref},

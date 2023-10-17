@@ -1,1 +1,3 @@
-from . import test_merge_request, test_repository, test_webhook
+from . import test_merge_request
+from . import test_repository
+from . import test_webhook

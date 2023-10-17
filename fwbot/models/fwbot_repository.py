@@ -1,28 +1,19 @@
 import logging
 import re
-from typing import List, Tuple
 from urllib.parse import urlparse
 
-from odoo import api, fields, models
-from requests import Response
+from odoo import _, api, fields, models
+from odoo.exceptions import ValidationError
 
 from ..api import ForwardbotGitlabClient, get_api_data
 
 _logger = logging.getLogger(__name__)
 
-# Odoo 11 does not support type hinting on methods unless marked with @api, hack for it to work on Odoo 11 & 16
-try:
-    from odoo.api import multi
-except ImportError:
-
-    def multi(func):
-        return func
-
 
 class Repository(models.Model):
     _name = "fwbot.repository"
     _inherit = ["fwbot.remote.mixin"]
-    _description = "Git Repository (fwbot)"
+    _description = "Git Repository for fwbot"
     _branch_version_regex = re.compile(r"(\d{2}(.\d)?)$")
 
     name = fields.Char(required=True)
@@ -46,8 +37,7 @@ class Repository(models.Model):
         parsed_url = urlparse(self.url)
         return f"{parsed_url.scheme}://{parsed_url.netloc}"
 
-    @multi
-    def get_api_data(self) -> Tuple[str, str]:
+    def get_api_data(self):
         self.ensure_one()
         url, token = self.base_url, self.token
         if not url or not token:
@@ -56,16 +46,16 @@ class Repository(models.Model):
             token = token or conf_token
 
         if not url or not token:
-            raise ValueError("missing url or access token")
+            raise ValidationError(_("missing url or access token"))
 
         return url, token
 
     @api.model
-    def get_branch_version(self, branch_name: str) -> float:
+    def get_branch_version(self, branch_name):
         """Obtain the version from a branch (if available) and return its value.
         Note: main/master are considered the newest version (they have a version value of 1000)
         """
-        if (branch_name == "main") or (branch_name == "master"):
+        if branch_name in ["main", "master"]:
             return 1000.0
 
         version = self._branch_version_regex.search(branch_name)
@@ -74,8 +64,7 @@ class Repository(models.Model):
 
         return -1.0
 
-    @multi
-    def get_next_branch(self, branch_name: str) -> str:
+    def get_next_branch(self, branch_name):
         """Return the branch that follows the current one or an empty string if no branch exists after the
         current one. Only branches that exist in the current repository will be returned.
 
@@ -89,38 +78,33 @@ class Repository(models.Model):
         try:
             index = branches.index(branch_name)
             return branches[index + 1]
-        except (IndexError, ValueError):
+        except (IndexError, ValidationError):
             return ""
 
-    @multi
-    def update_branches(self, branches: List[str]):
+    def update_branches(self, branches):
         branches.sort(key=self.get_branch_version)
         self.stable_branches = ",".join(branches)
 
-    @multi
-    def get_stable_branches(self) -> List[str]:
+    def get_stable_branches(self):
         self.ensure_one()
         platform_method = getattr(self, f"_{self.platform}_get_stable_branches")
 
         return platform_method()
 
-    @multi
-    def _gitlab_get_stable_branches(self) -> List[str]:
+    def _gitlab_get_stable_branches(self):
         url, token = self.get_api_data()
         response = ForwardbotGitlabClient(url, token, self.timeout).get_protected_branches(self.remote_id)
         response.raise_for_status()
 
         return [branch["name"] for branch in response.json()]
 
-    @multi
-    def clone_branch(self, source: str, dest: str) -> Response:
+    def clone_branch(self, source: str, dest: str):
         self.ensure_one()
         platform_method = getattr(self, f"_{self.platform}_clone_branch")
 
         return platform_method(source, dest)
 
-    @multi
-    def _gitlab_clone_branch(self, source: str, dest: str):
+    def _gitlab_clone_branch(self, source, dest):
         url, token = self.get_api_data()
 
         return ForwardbotGitlabClient(url, token, self.timeout).create_branch(self.remote_id, dest, source)
@@ -142,7 +126,7 @@ class Repository(models.Model):
         for repo in repositories:
             try:
                 _logger.info("Syncing branches for %s", repo)
-                branches = repo.with_context({"timeout": timeout}).get_stable_branches()
+                branches = repo.with_context(timeout=timeout).get_stable_branches()
                 repo.update_branches(branches)
             except Exception as ex:
                 _logger.warning("%s", ex)
